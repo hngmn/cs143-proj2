@@ -132,7 +132,45 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
 
 RC SqlEngine::load(const string& table, const string& loadfile, bool index)
 {
-  /* your code here */
+  RC ret;
+  RecordId rid;
+  RecordFile rf;
+  int k;
+  string v;
+  ifstream ifs;
+
+  // open table file
+  if (ret = rf.open(table + ".tbl", 'w')) { // error
+    fprintf(stderr, "rf.open() failed to open\n");
+    return RC_FILE_OPEN_FAILED;
+  }
+
+  // open loadfile
+  ifs.open(loadfile.c_str()); // what the FUCK its not opening right
+  if (ifs.is_open()) { // error
+    fprintf(stderr, "ifs failed to open %s\n", loadfile.c_str());
+    return RC_FILE_OPEN_FAILED;
+  }
+
+  string line;
+  // read lines
+  while (ifs.good()) {
+    // parse line
+    getline(ifs, line);
+
+    // create rid
+    if (ret = SqlEngine::parseLoadLine(line, k, v)) { // parsing failed
+      // parse failed
+      fprintf(stderr, "parseLoadLine returned nonzero\n");
+      return ret;
+    }
+
+    // insert rid into rf
+    if (ret = rf.append(k, v, rid)) { // append failed
+      fprintf(stderr, "append returned nonzero\n");
+      return ret;
+    }
+  }
 
   return 0;
 }
