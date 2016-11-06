@@ -147,20 +147,19 @@ RC SqlEngine::load(const string& table, const string& loadfile, bool index)
 
   // open loadfile
   ifs.open(loadfile.c_str()); // what the FUCK its not opening right
-  if (ifs.is_open()) { // error
+  if (!ifs.is_open()) { // error
     fprintf(stderr, "ifs failed to open %s\n", loadfile.c_str());
     return RC_FILE_OPEN_FAILED;
   }
 
   string line;
   // read lines
-  while (ifs.good()) {
-    // parse line
-    getline(ifs, line);
+  while (getline(ifs, line)) {
 
     // create rid
     if (ret = SqlEngine::parseLoadLine(line, k, v)) { // parsing failed
       // parse failed
+      cout << ret;
       fprintf(stderr, "parseLoadLine returned nonzero\n");
       return ret;
     }
