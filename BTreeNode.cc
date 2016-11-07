@@ -5,8 +5,10 @@
 
 using namespace std;
 
-// Error codes
-const int ERROR_NODE_FULL = 1;
+// Return codes
+const int RC_SUCCESS = 0;
+// RC_NODE_FULL is already defined
+// RC_NO_SUCH_RECORD is already defined
 
 // Size of (key, id) pairs
 const int RECORD_PAIR_SIZE = sizeof(int) + sizeof(RecordId);
@@ -39,7 +41,7 @@ RC BTLeafNode::read(PageId pid, const PageFile& pf){
 		cerr << "Error Code: " << rc << endl;
 	}
 
-	return 0;
+	return RC_SUCCESS;
 }
     
 /*
@@ -56,15 +58,16 @@ RC BTLeafNode::write(PageId pid, PageFile& pf){
 		cerr << "Error Code: " << rc << endl;
 	}
 
-	return 0;
+	return RC_SUCCESS;
 }
 
 /*
  * Return the number of keys stored in the node.
  * @return the number of keys in the node
  */
-int BTLeafNode::getKeyCount()
-{ return 0; }
+int BTLeafNode::getKeyCount(){
+	return numKeys;
+}
 
 /*
  * Insert a (key, rid) pair to the node.
@@ -79,12 +82,18 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 
 	// numKeys is already at the maximum number of keys
 	if (numKeys == MAX_NUM_RECORD_KEYS)
-		return ERROR_NODE_FULL;
+		return RC_NODE_FULL;
 
 	// Traverse buffer and find the correct spot to put pair in
 	// The correct spot will either be an empty spot (null)
 	// OR when the key is less than the key at traverse
 	while (*traverse) {
+		int traverseKey;
+		memcpy(&traverseKey, traverse, sizeof(int));
+
+		if (key > traverseKey)
+			break;
+
 		offset += RECORD_PAIR_SIZE;
 		traverse += RECORD_PAIR_SIZE;
 	}
@@ -106,7 +115,7 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 
 	// Success
 	numKeys++;
-	return 0;
+	return RC_SUCCESS;
 }
 
 /*
@@ -134,8 +143,35 @@ RC BTLeafNode::insertAndSplit(int key, const RecordId& rid,
                    behind the largest key smaller than searchKey.
  * @return 0 if searchKey is found. Otherwise return an error code.
  */
-RC BTLeafNode::locate(int searchKey, int& eid)
-{ return 0; }
+RC BTLeafNode::locate(int searchKey, int& eid){
+
+	int offset = 0;
+	char* traverse = buffer;
+
+	// Traverse buffer and find searchKey
+	// Stop when searchKey is found OR searchKey > 
+	while (*traverse) {
+		int traverseKey;
+		memcpy(&traverseKey, traverse, sizeof(int));
+
+		// Set eid to current index
+		eid = offset / RECORD_PAIR_SIZE;
+
+		// Found, return Success
+		if (searchKey == traverseKey)
+			return RC_SUCCESS;
+
+		// traverseKey is greater than searchKey, thus there is no record
+		else if (searchKey < traverseKey)
+			return RC_NO_SUCH_RECORD;
+
+		offset += RECORD_PAIR_SIZE;
+		traverse += RECORD_PAIR_SIZE;
+	}
+
+	// Reached end, searchKey is greater than all keys
+	return RC_NO_SUCH_RECORD;
+}
 
 /*
  * Read the (key, rid) pair from the eid entry.
@@ -205,7 +241,7 @@ RC BTNonLeafNode::read(PageId pid, const PageFile& pf){
 		cerr << "Error Code: " << rc << endl;
 	}
 
-	return 0;
+	return RC_SUCCESS;
 }
     
 /*
@@ -214,15 +250,24 @@ RC BTNonLeafNode::read(PageId pid, const PageFile& pf){
  * @param pf[IN] PageFile to write to
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTNonLeafNode::write(PageId pid, PageFile& pf)
-{ return 0; }
+RC BTNonLeafNode::write(PageId pid, PageFile& pf) {
+	
+	int rc;
+
+	if (rc = pf.write(pid, buffer)) {
+		cerr << "Error Code: " << rc << endl;
+	}
+
+	return RC_SUCCESS;
+}
 
 /*
  * Return the number of keys stored in the node.
  * @return the number of keys in the node
  */
-int BTNonLeafNode::getKeyCount()
-{ return 0; }
+int BTNonLeafNode::getKeyCount(){
+	return numKeys;
+}
 
 
 /*
@@ -271,12 +316,28 @@ RC BTNonLeafNode::initializeRoot(PageId pid1, int key, PageId pid2)
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
 
-	for (int i = 0; i < MAX_NUM_RECORD_KEYS + 1; i++) {
-		if (leafNode->insert(1, RecordId{0, 1})) {
-			cout << "ERROR_NODE_FULL" << endl;
-			break;
-		}
-	}
+	// // BTLeafNode::insert
+	// for (int i = 0; i < MAX_NUM_RECORD_KEYS + 1; i++) {
+	// 	if (leafNode->insert(1, RecordId{0, 1})) {
+	// 		cout << "RC_NODE_FULL" << endl;
+	// 		break;
+	// 	}
+	// }
+
+	// BTLeafNode::locate
+	int eid = -1;
+	leafNode->insert(1, RecordId{0,0});
+	leafNode->insert(3, RecordId{0,0});
+	leafNode->insert(5, RecordId{0,0});
+	leafNode->insert(2, RecordId{0,0});
 
 	leafNode->print();
+
+	// leafNode->locate(3, eid);	
+	// cout << eid << endl;
+
+	// leafNode->locate(4, eid);	
+	// cout << eid << endl;
+
+	// leafNode->print();
 }
