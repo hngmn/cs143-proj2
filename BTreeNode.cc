@@ -7,6 +7,8 @@ using namespace std;
 
 // Return codes
 const int RC_SUCCESS = 0;
+const int RC_SET_NEXT_NODE_ERROR = -10;
+const int RC_NO_ENTRY_FOUND = -11;
 // RC_NODE_FULL is already defined
 // RC_NO_SUCH_RECORD is already defined
 
@@ -91,7 +93,7 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 		int traverseKey;
 		memcpy(&traverseKey, traverse, sizeof(int));
 
-		if (key > traverseKey)
+		if (key < traverseKey)
 			break;
 
 		offset += RECORD_PAIR_SIZE;
@@ -162,7 +164,7 @@ RC BTLeafNode::locate(int searchKey, int& eid){
 			return RC_SUCCESS;
 
 		// traverseKey is greater than searchKey, thus there is no record
-		else if (searchKey < traverseKey)
+		if (searchKey < traverseKey)
 			return RC_NO_SUCH_RECORD;
 
 		offset += RECORD_PAIR_SIZE;
@@ -180,23 +182,51 @@ RC BTLeafNode::locate(int searchKey, int& eid){
  * @param rid[OUT] the RecordId from the entry
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTLeafNode::readEntry(int eid, int& key, RecordId& rid)
-{ return 0; }
+RC BTLeafNode::readEntry(int eid, int& key, RecordId& rid){
+
+	int offset = eid * RECORD_PAIR_SIZE;
+	int traverseKey;
+
+	// Validate key
+	memcpy(&traverseKey, buffer + offset, sizeof(int));
+
+	if (!traverseKey)
+		return RC_NO_ENTRY_FOUND;
+
+	// key is valid
+	memcpy(&key, buffer + offset, sizeof(int));
+	memcpy(&rid, buffer + offset + sizeof(int), sizeof(RecordId));
+
+	return RC_SUCCESS;
+}
 
 /*
  * Return the pid of the next slibling node.
  * @return the PageId of the next sibling node 
  */
-PageId BTLeafNode::getNextNodePtr()
-{ return 0; }
+PageId BTLeafNode::getNextNodePtr(){
+
+	PageId pid;
+	memcpy(&pid, buffer + PageFile::PAGE_SIZE - sizeof(PageId), sizeof(PageId));
+
+	return pid;
+}
 
 /*
  * Set the pid of the next slibling node.
  * @param pid[IN] the PageId of the next sibling node 
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTLeafNode::setNextNodePtr(PageId pid)
-{ return 0; }
+RC BTLeafNode::setNextNodePtr(PageId pid){
+
+	// Invalid pid
+	if (pid < 0)
+		return RC_SET_NEXT_NODE_ERROR;
+
+	// pid is valid
+	memcpy(buffer + PageFile::PAGE_SIZE - sizeof(PageId), &pid, sizeof(PageId));
+	return RC_SUCCESS;
+}
 
 void BTLeafNode::print() {
 	
@@ -324,20 +354,56 @@ int main() {
 	// 	}
 	// }
 
-	// BTLeafNode::locate
-	int eid = -1;
-	leafNode->insert(1, RecordId{0,0});
-	leafNode->insert(3, RecordId{0,0});
-	leafNode->insert(5, RecordId{0,0});
-	leafNode->insert(2, RecordId{0,0});
-
-	leafNode->print();
+	// // BTLeafNode::locate
+	// int eid = -1;
+	// leafNode->insert(1, RecordId{0,0});
+	// leafNode->insert(3, RecordId{0,0});
+	// leafNode->insert(5, RecordId{0,0});
+	// leafNode->insert(2, RecordId{0,0});
 
 	// leafNode->locate(3, eid);	
 	// cout << eid << endl;
 
 	// leafNode->locate(4, eid);	
 	// cout << eid << endl;
+
+	// BTLeafNode::getNextNodePtr
+	// cerr << "Next Node Ptr: " << leafNode->getNextNodePtr() << endl;
+
+	// PageId pid = 10;
+	// leafNode->setNextNodePtr(pid);
+	// cerr << "Next Node Ptr: " << leafNode->getNextNodePtr() << endl;
+
+	// pid = 0;
+	// leafNode->setNextNodePtr(pid);
+	// cerr << "Next Node Ptr: " << leafNode->getNextNodePtr() << endl;
+
+	// BTLeafNode::readEntry
+	// leafNode->insert(1, RecordId{1,10});
+	// leafNode->insert(3, RecordId{3,30});
+	// leafNode->insert(5, RecordId{5,50});
+	// leafNode->insert(2, RecordId{2,20});
+
+	// int key;
+	// RecordId rid;
+
+	// leafNode->readEntry(0, key, rid); // key: 1
+	// cerr << "key: " << key << endl;
+	// cerr << "rid.pid: " << rid.pid;
+	// cerr << " rid.sid: " << rid.sid << endl;
+	// cerr << "entry: " << "0" << endl << endl;
+
+	// leafNode->readEntry(1, key, rid); // key: 2
+	// cerr << "key: " << key << endl;
+	// cerr << "rid.pid: " << rid.pid;
+	// cerr << " rid.sid: " << rid.sid << endl;
+	// cerr << "entry: " << "1" << endl << endl;
+
+	// leafNode->readEntry(3, key, rid); // key: 5
+	// cerr << "key: " << key << endl;
+	// cerr << "rid.pid: " << rid.pid;
+	// cerr << " rid.sid: " << rid.sid << endl;
+	// cerr << "entry: " << "3" << endl << endl;
 
 	// leafNode->print();
 }
