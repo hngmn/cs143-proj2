@@ -13,8 +13,8 @@ const int RECORD_PAIR_SIZE = sizeof(int) + sizeof(RecordId);
 const int PAGE_PAIR_SIZE = sizeof(int) + sizeof(PageId);
 
 // Max number of keys
-const int MAX_NUM_PAGE_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / sizeof(PAGE_PAIR_SIZE);
-const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / sizeof(RECORD_PAIR_SIZE);
+const int MAX_NUM_PAGE_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / PAGE_PAIR_SIZE;
+const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / RECORD_PAIR_SIZE;
 
 //////////////////////////////////////////////////////////////////////
 /////////// BTLeafNode ///////////////////////////////////////////////
@@ -89,8 +89,6 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 		traverse += RECORD_PAIR_SIZE;
 	}
 
-	// cerr << "Offset: " << offset << endl;
-
 	// Create a new buffer with
 	// buffer[0] to buffer[offset], (key, rid), buffer[offset] to buffer[PageFile::PAGE_SIZE]
 	char* newBuffer = (char *) malloc(PageFile::PAGE_SIZE);
@@ -102,7 +100,7 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 	memcpy(newBuffer + offset + RECORD_PAIR_SIZE, buffer + offset, numKeys*RECORD_PAIR_SIZE-offset);
 	memcpy(newBuffer + PageFile::PAGE_SIZE-sizeof(PageId), buffer + PageFile::PAGE_SIZE-sizeof(PageId), sizeof(PageId));
 
-	// // Reassign newBuffer to buffer and free memory
+	// Reassign newBuffer to buffer and free memory
 	memcpy(buffer, newBuffer, PageFile::PAGE_SIZE);
 	free(newBuffer);
 
@@ -273,7 +271,12 @@ RC BTNonLeafNode::initializeRoot(PageId pid1, int key, PageId pid2)
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
 
-	leafNode->insert(1, RecordId{0, 1});
-	leafNode->insert(2, RecordId{2, 3});
+	for (int i = 0; i < MAX_NUM_RECORD_KEYS + 1; i++) {
+		if (leafNode->insert(1, RecordId{0, 1})) {
+			cout << "ERROR_NODE_FULL" << endl;
+			break;
+		}
+	}
+
 	leafNode->print();
 }
