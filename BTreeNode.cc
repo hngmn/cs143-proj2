@@ -7,8 +7,8 @@ using namespace std;
 
 // Return codes
 const int RC_SUCCESS = 0;
-const int RC_SET_NEXT_NODE_ERROR = -10;
-const int RC_NO_ENTRY_FOUND = -11;
+const int RC_INVALID_KEY = -11;
+// RC_INVALID_PID is already defined
 // RC_NODE_FULL is already defined
 // RC_NO_SUCH_RECORD is already defined
 
@@ -25,7 +25,13 @@ const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / RECORD_
 //////////////////////////////////////////////////////////////////////
 
 BTLeafNode::BTLeafNode() {
+	clearBuffer();
 	numKeys = 0;
+}
+
+RC BTLeafNode::clearBuffer() {
+	memset(buffer, 0, PageFile::PAGE_SIZE);
+	return RC_SUCCESS;
 }
 
 /*
@@ -191,7 +197,7 @@ RC BTLeafNode::readEntry(int eid, int& key, RecordId& rid){
 	memcpy(&traverseKey, buffer + offset, sizeof(int));
 
 	if (!traverseKey)
-		return RC_NO_ENTRY_FOUND;
+		return RC_INVALID_KEY;
 
 	// key is valid
 	memcpy(&key, buffer + offset, sizeof(int));
@@ -221,7 +227,7 @@ RC BTLeafNode::setNextNodePtr(PageId pid){
 
 	// Invalid pid
 	if (pid < 0)
-		return RC_SET_NEXT_NODE_ERROR;
+		return RC_INVALID_PID;
 
 	// pid is valid
 	memcpy(buffer + PageFile::PAGE_SIZE - sizeof(PageId), &pid, sizeof(PageId));
@@ -237,7 +243,7 @@ void BTLeafNode::print() {
 		int recordId;
 		
 		memcpy(&key, traverse, sizeof(int));
-		memcpy(&recordId, traverse + sizeof(int), sizeof(int));
+		memcpy(&recordId, traverse + sizeof(int), sizeof(RecordId));
 
 		cerr << "Key: " << key;
 		cerr << " Record Id: " << recordId;
@@ -253,7 +259,13 @@ void BTLeafNode::print() {
 
 
 BTNonLeafNode::BTNonLeafNode() {
+	clearBuffer();
 	numKeys = 0;
+}
+
+RC BTNonLeafNode::clearBuffer() {
+	memset(buffer, 0, PageFile::PAGE_SIZE);
+	return RC_SUCCESS;
 }
 
 /*
@@ -306,8 +318,13 @@ int BTNonLeafNode::getKeyCount(){
  * @param pid[IN] the PageId to insert
  * @return 0 if successful. Return an error code if the node is full.
  */
-RC BTNonLeafNode::insert(int key, PageId pid)
-{ return 0; }
+RC BTNonLeafNode::insert(int key, PageId pid){
+
+	// NOTE: non leaf nodes have a lone pid at the beginning
+	// i.e. pid,key,pid,key,pid
+
+	return RC_SUCCESS;
+}
 
 /*
  * Insert the (key, pid) pair to the node
@@ -339,12 +356,51 @@ RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
  * @param pid2[IN] the PageId to insert behind the key
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTNonLeafNode::initializeRoot(PageId pid1, int key, PageId pid2)
-{ return 0; }
+RC BTNonLeafNode::initializeRoot(PageId pid1, int key, PageId pid2) {
+	clearBuffer();
+
+	// Validate inputs
+	if (pid1 < 0 || pid2 < 0)
+		return RC_INVALID_PID;
+
+	if (key < 0)
+		return RC_INVALID_KEY;
+
+	// key, pid1, and pi2 are valid
+	memcpy(buffer, &pid1, sizeof(PageId));
+	memcpy(buffer + sizeof(PageId), &key, sizeof(int));
+	memcpy(buffer + sizeof(PageId) + sizeof(int), &pid2, sizeof(PageId));
+
+	return RC_SUCCESS;
+}
+
+void BTNonLeafNode::print() {
+
+	char* traverse = buffer;
+
+	// Currently prints only keys, not pageids
+	// so start at first key
+	traverse += sizeof(PageId);
+
+	while (*traverse) {
+		int key;
+		// int pageId;
+		
+		memcpy(&key, traverse, sizeof(int));
+		// memcpy(&pageId, traverse + sizeof(int), sizeof(PageId));
+
+		cerr << "Key: " << key;
+		// cerr << " Page Id: " << pageId;
+		cerr << endl;
+
+		traverse += PAGE_PAIR_SIZE;
+	}
+}
 
 // For testing
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
+	BTNonLeafNode* nonLeafNode = new BTNonLeafNode();
 
 	// // BTLeafNode::insert
 	// for (int i = 0; i < MAX_NUM_RECORD_KEYS + 1; i++) {
@@ -405,5 +461,10 @@ int main() {
 	// cerr << " rid.sid: " << rid.sid << endl;
 	// cerr << "entry: " << "3" << endl << endl;
 
+	// // BTNonLeafNode::initializeRoot
+	// nonLeafNode->initializeRoot(1,12,3);
+	// nonLeafNode->print();
+
 	// leafNode->print();
+	// nonLeafNode->print();
 }

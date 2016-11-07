@@ -9,9 +9,13 @@ TODO
 
 Check if all return error codes are correct
 
-BTreeLeafNode::locate
+BTLeafNode::locate
 - what are we supposed to return when searchKey < traverseKey?
 	- I'm a little confused
 
 BTLeafNode::setNextNodePtr
 - in what situation would this return an error?
+
+BTNonLeafNode::print
+- add functionality to also print pageids
+	-i.e. pageid, key, pageid, key ...
