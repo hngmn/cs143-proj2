@@ -1,6 +1,28 @@
 #include "BTreeNode.h"
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
 
 using namespace std;
+
+// Error codes
+const int ERROR_NODE_FULL = 1;
+
+// Size of (key, id) pairs
+const int RECORD_PAIR_SIZE = sizeof(int) + sizeof(RecordId);
+const int PAGE_PAIR_SIZE = sizeof(int) + sizeof(PageId);
+
+// Max number of keys
+const int MAX_NUM_PAGE_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / sizeof(PAGE_PAIR_SIZE);
+const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / sizeof(RECORD_PAIR_SIZE);
+
+//////////////////////////////////////////////////////////////////////
+/////////// BTLeafNode ///////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+
+BTLeafNode::BTLeafNode() {
+	numKeys = 0;
+}
 
 /*
  * Read the content of the node from the page pid in the PageFile pf.
@@ -8,8 +30,17 @@ using namespace std;
  * @param pf[IN] PageFile to read from
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTLeafNode::read(PageId pid, const PageFile& pf)
-{ return 0; }
+RC BTLeafNode::read(PageId pid, const PageFile& pf){
+	
+	int rc;
+
+	// Read in page into memory buffer
+	if (rc = pf.read(pid, buffer)) {
+		cerr << "Error Code: " << rc << endl;
+	}
+
+	return 0;
+}
     
 /*
  * Write the content of the node to the page pid in the PageFile pf.
@@ -17,8 +48,16 @@ RC BTLeafNode::read(PageId pid, const PageFile& pf)
  * @param pf[IN] PageFile to write to
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTLeafNode::write(PageId pid, PageFile& pf)
-{ return 0; }
+RC BTLeafNode::write(PageId pid, PageFile& pf){
+	
+	int rc;
+
+	if (rc = pf.write(pid, buffer)) {
+		cerr << "Error Code: " << rc << endl;
+	}
+
+	return 0;
+}
 
 /*
  * Return the number of keys stored in the node.
@@ -33,8 +72,44 @@ int BTLeafNode::getKeyCount()
  * @param rid[IN] the RecordId to insert
  * @return 0 if successful. Return an error code if the node is full.
  */
-RC BTLeafNode::insert(int key, const RecordId& rid)
-{ return 0; }
+RC BTLeafNode::insert(int key, const RecordId& rid){
+
+	int offset = 0;
+	char* traverse = buffer;
+
+	// numKeys is already at the maximum number of keys
+	if (numKeys == MAX_NUM_RECORD_KEYS)
+		return ERROR_NODE_FULL;
+
+	// Traverse buffer and find the correct spot to put pair in
+	// The correct spot will either be an empty spot (null)
+	// OR when the key is less than the key at traverse
+	while (*traverse) {
+		offset += RECORD_PAIR_SIZE;
+		traverse += RECORD_PAIR_SIZE;
+	}
+
+	// cerr << "Offset: " << offset << endl;
+
+	// Create a new buffer with
+	// buffer[0] to buffer[offset], (key, rid), buffer[offset] to buffer[PageFile::PAGE_SIZE]
+	char* newBuffer = (char *) malloc(PageFile::PAGE_SIZE);
+	memcpy(newBuffer, buffer, offset); // buffer[0] to buffer[offset]
+	memcpy(newBuffer + offset, &key, sizeof(int)); // key
+	memcpy(newBuffer + offset + sizeof(int), &rid, sizeof(RecordId)); // rid
+
+	// buffer[offset] to buffer[PageFile::PAGE_SIZE]
+	memcpy(newBuffer + offset + RECORD_PAIR_SIZE, buffer + offset, numKeys*RECORD_PAIR_SIZE-offset);
+	memcpy(newBuffer + PageFile::PAGE_SIZE-sizeof(PageId), buffer + PageFile::PAGE_SIZE-sizeof(PageId), sizeof(PageId));
+
+	// // Reassign newBuffer to buffer and free memory
+	memcpy(buffer, newBuffer, PageFile::PAGE_SIZE);
+	free(newBuffer);
+
+	// Success
+	numKeys++;
+	return 0;
+}
 
 /*
  * Insert the (key, rid) pair to the node
@@ -89,14 +164,51 @@ PageId BTLeafNode::getNextNodePtr()
 RC BTLeafNode::setNextNodePtr(PageId pid)
 { return 0; }
 
+void BTLeafNode::print() {
+	
+	char* traverse = buffer;
+
+	while (*traverse) {
+		int key;
+		int recordId;
+		
+		memcpy(&key, traverse, sizeof(int));
+		memcpy(&recordId, traverse + sizeof(int), sizeof(int));
+
+		cerr << "Key: " << key;
+		cerr << " Record Id: " << recordId;
+		cerr << endl;
+
+		traverse += RECORD_PAIR_SIZE;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////
+/////////// BTNonLeafNode ////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+
+
+BTNonLeafNode::BTNonLeafNode() {
+	numKeys = 0;
+}
+
 /*
  * Read the content of the node from the page pid in the PageFile pf.
  * @param pid[IN] the PageId to read
  * @param pf[IN] PageFile to read from
  * @return 0 if successful. Return an error code if there is an error.
  */
-RC BTNonLeafNode::read(PageId pid, const PageFile& pf)
-{ return 0; }
+RC BTNonLeafNode::read(PageId pid, const PageFile& pf){
+	
+	int rc;
+
+	// Read in page into memory buffer
+	if (rc = pf.read(pid, buffer)) {
+		cerr << "Error Code: " << rc << endl;
+	}
+
+	return 0;
+}
     
 /*
  * Write the content of the node to the page pid in the PageFile pf.
@@ -156,3 +268,12 @@ RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
  */
 RC BTNonLeafNode::initializeRoot(PageId pid1, int key, PageId pid2)
 { return 0; }
+
+// For testing
+int main() {
+	BTLeafNode* leafNode = new BTLeafNode();
+
+	leafNode->insert(1, RecordId{0, 1});
+	leafNode->insert(2, RecordId{2, 3});
+	leafNode->print();
+}
