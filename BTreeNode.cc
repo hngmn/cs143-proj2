@@ -8,6 +8,8 @@ using namespace std;
 // Return codes
 const int RC_SUCCESS = 0;
 const int RC_INVALID_KEY = -11;
+const int RC_INVALID_RECORD = -12;
+const int RC_SIBLING_NOT_EMPTY = -13;
 // RC_INVALID_PID is already defined
 // RC_NODE_FULL is already defined
 // RC_NO_SUCH_RECORD is already defined
@@ -137,8 +139,62 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
  * @return 0 if successful. Return an error code if there is an error.
  */
 RC BTLeafNode::insertAndSplit(int key, const RecordId& rid, 
-                              BTLeafNode& sibling, int& siblingKey)
-{ return 0; }
+                              BTLeafNode& sibling, int& siblingKey) {
+
+	// Validate parameters
+	if (sibling.getKeyCount())
+		return RC_SIBLING_NOT_EMPTY;
+	else if (key < 0)
+		return RC_INVALID_KEY;
+	else if (rid.pid < 0 || rid.sid < 0)
+		return RC_INVALID_RECORD;
+
+	// Parameters are valid
+
+	// Get number of keys to store in each
+	// And calculate the offset of the midway point
+	int numHalfKeys = (getKeyCount() + 1) / 2;
+	sibling.numKeys = getKeyCount() - numHalfKeys;
+	numKeys = getKeyCount() - sibling.getKeyCount();
+
+	int midOffset = numHalfKeys * RECORD_PAIR_SIZE;
+
+	// Copy second half of node into sibling
+	// Set next node pointer to this node's next node pointer
+	memcpy(sibling.buffer, buffer + midOffset, PageFile::PAGE_SIZE - midOffset);
+	sibling.setNextNodePtr(getNextNodePtr());
+
+	// Erase second half of the node
+	// Will set key of this later, because it could be the newly inserted key
+	memset(buffer + midOffset, 0, midOffset);
+	
+
+	// Choose which buffer to insert new key into
+	int siblingFirstKey;
+	int thisNodeFirstKey;
+
+	memcpy(&siblingFirstKey, sibling.buffer, sizeof(int));
+	memcpy(&thisNodeFirstKey, buffer, sizeof(int));
+
+	if (key < siblingFirstKey) // Belongs in lower half
+		insert(key, rid);
+	else // Belongs in upper half
+		sibling.insert(key, rid);
+
+	// Set the next node pointer for this node
+	// TODO: is the next node pointer (a PageId) supposed to be 
+	// siblings first record id OR siblings first key?
+	RecordId siblingFirstRecordId;
+
+	memcpy(&siblingFirstRecordId, sibling.buffer + sizeof(int), sizeof(RecordId));
+	setNextNodePtr(siblingFirstRecordId.pid);
+
+	// Store first sibling key in siblingKey
+	memcpy(&siblingKey, sibling.buffer, sizeof(int));
+
+	// Success
+	return RC_SUCCESS;
+}
 
 /**
  * If searchKey exists in the node, set eid to the index entry
@@ -240,17 +296,21 @@ void BTLeafNode::print() {
 
 	while (*traverse) {
 		int key;
-		int recordId;
+		RecordId recordId;
 		
 		memcpy(&key, traverse, sizeof(int));
 		memcpy(&recordId, traverse + sizeof(int), sizeof(RecordId));
 
 		cerr << "Key: " << key;
-		cerr << " Record Id: " << recordId;
+		cerr << " RecordId.pid: " << recordId.pid;
+		cerr << " RecordId.sid: " << recordId.sid;
 		cerr << endl;
 
 		traverse += RECORD_PAIR_SIZE;
 	}
+
+	cerr << "Next Node Ptr: " << getNextNodePtr() << endl;
+	cerr << endl;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -464,6 +524,25 @@ int main() {
 	// // BTNonLeafNode::initializeRoot
 	// nonLeafNode->initializeRoot(1,12,3);
 	// nonLeafNode->print();
+
+	// BTLeafNode::insertAndSplit
+	BTLeafNode* leafNode1 = new BTLeafNode();
+	BTLeafNode leafNode2;
+
+	int siblingKey;
+
+	leafNode1->insert(1, RecordId{1,10});
+	leafNode1->insert(3, RecordId{3,30});
+	leafNode1->insert(5, RecordId{5,50});
+	leafNode1->insert(2, RecordId{2,20});
+
+	leafNode1->insertAndSplit(4, RecordId{4, 40}, leafNode2, siblingKey);
+
+	cerr << "Leaf Node 1" << endl;
+	leafNode1->print();
+
+	cerr << "Leaf Node 2" << endl;
+	leafNode2.print();
 
 	// leafNode->print();
 	// nonLeafNode->print();
