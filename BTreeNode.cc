@@ -116,8 +116,8 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 	memcpy(newBuffer + offset + sizeof(int), &rid, sizeof(RecordId)); // rid
 
 	// buffer[offset] to buffer[PageFile::PAGE_SIZE]
-	memcpy(newBuffer + offset + RECORD_PAIR_SIZE, buffer + offset, numKeys*RECORD_PAIR_SIZE-offset);
-	memcpy(newBuffer + PageFile::PAGE_SIZE-sizeof(PageId), buffer + PageFile::PAGE_SIZE-sizeof(PageId), sizeof(PageId));
+	memcpy(newBuffer + offset + RECORD_PAIR_SIZE, buffer + offset, numKeys * RECORD_PAIR_SIZE - offset);
+	memcpy(newBuffer + PageFile::PAGE_SIZE - sizeof(PageId), buffer + PageFile::PAGE_SIZE - sizeof(PageId), sizeof(PageId));
 
 	// Reassign newBuffer to buffer and free memory
 	memcpy(buffer, newBuffer, PageFile::PAGE_SIZE);
@@ -380,9 +380,46 @@ int BTNonLeafNode::getKeyCount(){
  */
 RC BTNonLeafNode::insert(int key, PageId pid){
 
-	// NOTE: non leaf nodes have a lone pid at the beginning
-	// i.e. pid,key,pid,key,pid
+	// Non leaf nodes have a lone pid at the beginning
+	// i.e. pid, key, pid
+	int offset = sizeof(PageId);
+	char* traverse = buffer + offset;
 
+	// numKeys is already at the maximum number of keys
+	if (numKeys == MAX_NUM_PAGE_KEYS)
+		return RC_NODE_FULL;
+
+	// Traverse buffer and find the correct spot to put pair in
+	// The correct spot will either be an empty spot (null)
+	// OR when the key is less than the key at traverse
+	while (*traverse) {
+		int traverseKey;
+		memcpy(&traverseKey, traverse, sizeof(int));
+
+		if (key < traverseKey)
+			break;
+
+		offset += PAGE_PAIR_SIZE;
+		traverse += PAGE_PAIR_SIZE;
+	}
+
+	// Create a new buffer with
+	// buffer[0] to buffer[offset], (key, rid), buffer[offset] to buffer[PageFile::PAGE_SIZE]
+	char* newBuffer = (char *) malloc(PageFile::PAGE_SIZE);
+	memcpy(newBuffer, buffer, offset); // buffer[0] to buffer[offset]
+	memcpy(newBuffer + offset, &key, sizeof(int)); // key
+	memcpy(newBuffer + offset + sizeof(int), &pid, sizeof(PageId)); // pid
+
+	// buffer[offset] to buffer[PageFile::PAGE_SIZE]
+	memcpy(newBuffer + offset + PAGE_PAIR_SIZE, buffer + offset, numKeys * PAGE_PAIR_SIZE);
+	memcpy(newBuffer + PageFile::PAGE_SIZE - sizeof(PageId), buffer + PageFile::PAGE_SIZE - sizeof(PageId), sizeof(PageId));
+
+	// Reassign newBuffer to buffer and free memory
+	memcpy(buffer, newBuffer, PageFile::PAGE_SIZE);
+	free(newBuffer);
+
+	// Success
+	numKeys++;
 	return RC_SUCCESS;
 }
 
@@ -437,20 +474,23 @@ RC BTNonLeafNode::initializeRoot(PageId pid1, int key, PageId pid2) {
 void BTNonLeafNode::print() {
 
 	char* traverse = buffer;
+	PageId initialPageId;
 
-	// Currently prints only keys, not pageids
-	// so start at first key
+	memcpy(&initialPageId, traverse, sizeof(PageId));
+
+	cerr << "Initial Page Id: " <<  initialPageId << endl;
+
 	traverse += sizeof(PageId);
 
 	while (*traverse) {
 		int key;
-		// int pageId;
+		PageId pageId;
 		
 		memcpy(&key, traverse, sizeof(int));
-		// memcpy(&pageId, traverse + sizeof(int), sizeof(PageId));
+		memcpy(&pageId, traverse + sizeof(int), sizeof(PageId));
 
 		cerr << "Key: " << key;
-		// cerr << " Page Id: " << pageId;
+		cerr << " Page Id: " << pageId;
 		cerr << endl;
 
 		traverse += PAGE_PAIR_SIZE;
@@ -525,25 +565,31 @@ int main() {
 	// nonLeafNode->initializeRoot(1,12,3);
 	// nonLeafNode->print();
 
-	// BTLeafNode::insertAndSplit
-	BTLeafNode* leafNode1 = new BTLeafNode();
-	BTLeafNode leafNode2;
+	// // BTLeafNode::insertAndSplit
+	// BTLeafNode* leafNode1 = new BTLeafNode();
+	// BTLeafNode leafNode2;
 
-	int siblingKey;
+	// int siblingKey;
 
-	leafNode1->insert(1, RecordId{1,10});
-	leafNode1->insert(3, RecordId{3,30});
-	leafNode1->insert(5, RecordId{5,50});
-	leafNode1->insert(2, RecordId{2,20});
+	// leafNode1->insert(1, RecordId{1,10});
+	// leafNode1->insert(3, RecordId{3,30});
+	// leafNode1->insert(5, RecordId{5,50});
+	// leafNode1->insert(2, RecordId{2,20});
 
-	leafNode1->insertAndSplit(4, RecordId{4, 40}, leafNode2, siblingKey);
+	// leafNode1->insertAndSplit(4, RecordId{4, 40}, leafNode2, siblingKey);
 
-	cerr << "Leaf Node 1" << endl;
-	leafNode1->print();
+	// cerr << "Leaf Node 1" << endl;
+	// leafNode1->print();
 
-	cerr << "Leaf Node 2" << endl;
-	leafNode2.print();
+	// cerr << "Leaf Node 2" << endl;
+	// leafNode2.print();
+
+	// BTNonLeafNode::insert
+	nonLeafNode->insert(1, 10);
+	nonLeafNode->insert(3, 30);
+	nonLeafNode->insert(5, 50);
+	nonLeafNode->insert(2, 20);
 
 	// leafNode->print();
-	// nonLeafNode->print();
+	nonLeafNode->print();
 }
