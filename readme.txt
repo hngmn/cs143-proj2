@@ -13,7 +13,3 @@ BTLeafNode::insertAndSplit
 - BUG: has a duplicate tuple
 - setNextNodePtr(PageId) for this node (not sibling)
 	- what do we send as PageId? Is it the first RecordId.pid in sibling, or is it the first key? 
-
-BTNonLeafNode::print
-- add functionality to also print pageids
-	-i.e. pageid, key, pageid, key ...
