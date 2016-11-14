@@ -31,6 +31,12 @@ BTLeafNode::BTLeafNode() {
 	numKeys = 0;
 }
 
+BTLeafNode::BTLeafNode(PageId pid) {
+	clearBuffer();
+	numKeys = 0;
+  pid_ = pid;
+}
+
 RC BTLeafNode::clearBuffer() {
 	memset(buffer, 0, PageFile::PAGE_SIZE);
 	return RC_SUCCESS;
@@ -321,6 +327,12 @@ void BTLeafNode::print() {
 BTNonLeafNode::BTNonLeafNode() {
 	clearBuffer();
 	numKeys = 0;
+}
+
+BTNonLeafNode::BTNonLeafNode(PageId pid) {
+	clearBuffer();
+	numKeys = 0;
+  pid_ = pid;
 }
 
 RC BTNonLeafNode::clearBuffer() {
