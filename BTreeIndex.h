@@ -35,6 +35,11 @@ class BTreeIndex {
  public:
   BTreeIndex();
 
+  RC clearBuffer();
+
+  void print();
+
+
   /**
    * Open the index file in read or write mode.
    * Under 'w' mode, the index file should be created if it does not exist.
@@ -91,12 +96,18 @@ class BTreeIndex {
  private:
   PageFile pf;         /// the PageFile used to store the actual b+tree in disk
 
+  // NOTE: For the page with pid = 0, we will store rootPid
+  // at offset 0 and treeHeight at offset + sizeof(PageId).
+  // Nodes start with pid = 1
+
   PageId   rootPid;    /// the PageId of the root node
   int      treeHeight; /// the height of the tree
   /// Note that the content of the above two variables will be gone when
   /// this class is destructed. Make sure to store the values of the two 
   /// variables in disk, so that they can be reconstructed when the index
   /// is opened again later.
+
+  char buffer[PageFile::PAGE_SIZE];
 };
 
 #endif /* BTREEINDEX_H */

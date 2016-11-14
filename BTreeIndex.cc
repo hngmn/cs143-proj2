@@ -6,18 +6,42 @@
  * @author Junghoo "John" Cho <cho AT cs.ucla.edu>
  * @date 3/24/2008
  */
- 
+
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include "BTreeIndex.h"
 #include "BTreeNode.h"
 
 using namespace std;
 
+// Return codes
+const int RC_SUCCESS = 0;
+const int RC_PF_CLOSE_ERROR = -10;
+const int RC_PF_OPEN_ERROR = -11;
+const int RC_PF_READ_ERROR = -12;
+const int RC_PF_WRITE_ERROR = -13;
+
 /*
  * BTreeIndex constructor
  */
-BTreeIndex::BTreeIndex()
-{
+BTreeIndex::BTreeIndex() {
     rootPid = -1;
+    treeHeight = 0;
+    clearBuffer();
+}
+
+RC BTreeIndex::clearBuffer() {
+	memset(buffer, 0, PageFile::PAGE_SIZE);
+	return RC_SUCCESS;
+}
+
+void BTreeIndex::print() {
+
+	// Print BTreeIndex information
+	cerr << "rootPid: " << rootPid << endl;
+	cerr << "treeHeight: " << treeHeight << endl;
+	cerr << endl;
 }
 
 /*
@@ -27,18 +51,61 @@ BTreeIndex::BTreeIndex()
  * @param mode[IN] 'r' for read, 'w' for write
  * @return error code. 0 if no error
  */
-RC BTreeIndex::open(const string& indexname, char mode)
-{
-    return 0;
+RC BTreeIndex::open(const string& indexname, char mode) {
+    
+    // Open the index file
+	if (pf.open(indexname, mode))
+		return RC_PF_OPEN_ERROR;
+
+	// If endPid == 0, there are no disk pages currently stored,
+	// so just return, otherwise, check the disk page with pid = 0 for
+	// the rootPid and treeHeight
+	//
+	// NOTE: We'll reserve the page with pid = 0 for storing rootPid
+	// and treeHeight. We'll create nodes starting with pid = 1 
+	if (pf.endPid() != 0) {
+
+		// Read pid = 0 into buffer
+		if (pf.read(0, buffer))
+			return RC_PF_READ_ERROR;
+
+		// Get the rootId and treeHeight
+		PageId tempRootId;
+		int tempTreeHeight;
+
+		memcpy(&tempRootId, buffer, sizeof(PageId));
+		memcpy(&tempTreeHeight, buffer + sizeof(PageId), sizeof(int));
+	
+		// Store found values only if they are valid
+		// We know that tempRootId must be > 0 because we reserved pid = 0
+		if (tempRootId != 0 && tempTreeHeight >= 0) {
+			rootPid = tempRootId;
+			treeHeight = tempTreeHeight;
+		}
+	}
+
+    return RC_SUCCESS;
 }
 
 /*
  * Close the index file.
  * @return error code. 0 if no error
  */
-RC BTreeIndex::close()
-{
-    return 0;
+RC BTreeIndex::close() {
+
+	// Store rootPid and treeHeight into buffer
+	memcpy(buffer, &rootPid, sizeof(PageId));
+	memcpy(buffer + sizeof(PageId), &treeHeight, sizeof(int));
+
+	// Write the buffer to pid = 0
+	if (pf.write(0, buffer))
+		return RC_PF_WRITE_ERROR;
+
+	// Close the page file
+	if (pf.close())
+		return RC_PF_CLOSE_ERROR;
+
+    return RC_SUCCESS;
 }
 
 /*
@@ -47,9 +114,31 @@ RC BTreeIndex::close()
  * @param rid[IN] the RecordId for the record being inserted into the index
  * @return error code. 0 if no error
  */
-RC BTreeIndex::insert(int key, const RecordId& rid)
-{
-    return 0;
+RC BTreeIndex::insert(int key, const RecordId& rid) {
+
+	// TODO: There are four different cases upon inserting:
+	// (COMPLETE) 1. New Root
+	// (INCOMPLETE) 2. No Overflow
+	// (INCOMPLETE) 3. Leaf Overflow
+	// (INCOMPLETE) 4. Non-Leaf Overflow
+
+	// 1. New Root
+	if (treeHeight == 0) {
+
+		// Create a new leaf node
+		BTLeafNode leafNode;
+		leafNode.insert(key, rid);
+
+		// Create root node at next pid that is not pid = 0
+		rootPid = pf.endPid() == 0 ? 1 : pf.endPid();
+
+		treeHeight++;
+
+		// Write tree to the pid in pf
+		return leafNode.write(rootPid, pf);
+	}
+
+	return RC_SUCCESS;
 }
 
 /**
@@ -86,4 +175,29 @@ RC BTreeIndex::locate(int searchKey, IndexCursor& cursor)
 RC BTreeIndex::readForward(IndexCursor& cursor, int& key, RecordId& rid)
 {
     return 0;
+}
+
+int main() {
+
+	BTreeIndex* index = new BTreeIndex();
+
+	char fakeBuffer[PageFile::PAGE_SIZE];
+
+	// BTreeIndex::open
+	// PageFile* test1 = new PageFile("test1", 'w');
+	// PageId testRootId = 1;
+	// int testTreeHeight = 2;
+
+	// memcpy(fakeBuffer, &testRootId, sizeof(PageId));
+	// memcpy(fakeBuffer + sizeof(PageId), &testTreeHeight, sizeof(int));
+
+	// if (test1->write(0, fakeBuffer))
+	// 	cerr << "error" << endl;
+
+	// index->open("test1", 'w');
+	// // index->insert(2, RecordId{2, 20});
+	// index->close();
+	// index->print();
+
+	return RC_SUCCESS;
 }
