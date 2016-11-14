@@ -446,7 +446,52 @@ RC BTNonLeafNode::insert(int key, PageId pid){
  * @return 0 if successful. Return an error code if there is an error.
  */
 RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, int& midKey)
-{ return 0; }
+{
+	// Validate parameters
+	if (sibling.getKeyCount())
+		return RC_SIBLING_NOT_EMPTY;
+	else if (key < 0)
+		return RC_INVALID_KEY;
+	else if (pid < 0)
+		return RC_INVALID_PID;
+
+	// Parameters are valid
+
+	// Get number of keys to store in each
+	// And calculate the offset of the midway point
+	int numHalfKeys = (getKeyCount() + 1) / 2;
+	sibling.numKeys = getKeyCount() - numHalfKeys;
+	numKeys = getKeyCount() - sibling.getKeyCount();
+
+	int midOffset = numHalfKeys * RECORD_PAIR_SIZE;
+
+	// Copy second half of node into sibling
+	// Set next node pointer to this node's next node pointer
+	memcpy(sibling.buffer, buffer + midOffset, PageFile::PAGE_SIZE - midOffset);
+
+	// Erase second half of the node
+	// Will set key of this later, because it could be the newly inserted key
+	memset(buffer + midOffset, 0, PageFile::PAGE_SIZE - midOffset);
+	
+
+	// Choose which buffer to insert new key into
+	int siblingFirstKey;
+	int thisNodeFirstKey;
+
+	memcpy(&siblingFirstKey, sibling.buffer, sizeof(int));
+	memcpy(&thisNodeFirstKey, buffer, sizeof(int));
+
+	if (key < siblingFirstKey) // Belongs in lower half
+		insert(key, pid);
+	else // Belongs in upper half
+		sibling.insert(key, pid);
+
+	// Store first sibling key in siblingKey
+	memcpy(&midKey, sibling.buffer, sizeof(int));
+
+	// Success
+	return RC_SUCCESS;
+}
 
 /*
  * Given the searchKey, find the child-node pointer to follow and
@@ -456,7 +501,27 @@ RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, in
  * @return 0 if successful. Return an error code if there is an error.
  */
 RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
-{ return 0; }
+{
+  char *p;        // traversal pointer
+  int key;        // traversal key
+  int offset = 0; // offset
+
+  while (*p != 0) {
+    memcpy(&key, p, sizeof(int));
+
+    if (key == searchKey) { // key found!
+      return RC_SUCCESS;
+    } else if (key > searchKey) { // key doesn't exist
+      return RC_NO_SUCH_RECORD;
+    }
+
+    p += PAGE_PAIR_SIZE;
+    offset++;
+  }
+
+  // node exhausted; key does not exist
+  return RC_NO_SUCH_RECORD;
+}
 
 /*
  * Initialize the root node with (pid1, key, pid2).
