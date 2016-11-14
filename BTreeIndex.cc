@@ -138,6 +138,44 @@ RC BTreeIndex::insert(int key, const RecordId& rid) {
 		return leafNode.write(rootPid, pf);
 	}
 
+	// We will insert the key and rid recursively for cases 2, 3, and 4.
+	//
+	// NOTE: The function signature will keep changing as we figure out what we need
+	// to traverse recursively for each case.
+	//
+	// 2. We will start at currTreeHeight = 1 and reach currTreeHeight = treeHeight
+	// so that we can insert at the leaf level.
+	//
+	// 3.
+	//
+	// 4.
+	// 
+	return insertRec(key, rid, 1);
+}
+
+RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight) {
+
+
+
+	// We've reach the leaf node level, so insert the leaf node
+	if (currTreeHeight == treeHeight) {
+
+		// 2. No Overflow
+
+
+		// TODO: 3. Leaf Overflow
+		// (Probably using an if else statement) with case 2.
+
+	// We are at a non leaf node level
+	} else {
+
+		// TODO: We need to traverse down the tree correctly, so we need to follow pids.
+		// In a non leaf node, we need to look at which pid we should follow using key,
+		// probably by using some function in BTreeNode.h.
+
+		return insertRec(key, rid, currTreeHeight + 1);
+	}
+
 	return RC_SUCCESS;
 }
 

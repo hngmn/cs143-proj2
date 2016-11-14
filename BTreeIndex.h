@@ -63,6 +63,9 @@ class BTreeIndex {
    */
   RC insert(int key, const RecordId& rid);
 
+  // Recursively insert into the BTree
+  RC insertRec(int key, const RecordId& rid, int currTreeHeight);
+
   /**
    * Run the standard B+Tree key search algorithm and identify the
    * leaf node where searchKey may exist. If an index entry with
