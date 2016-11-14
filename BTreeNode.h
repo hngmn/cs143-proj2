@@ -19,6 +19,7 @@
 class BTLeafNode {
   public:
     BTLeafNode();
+    BTLeafNode(PageId pid);
 
    /**
     * Insert the (key, rid) pair to the node.
@@ -103,11 +104,15 @@ class BTLeafNode {
     void print();
 
   private:
+    // number of keys in the node
+    int numKeys;
+
+    // page id of this node in the tree's PageFile
+    PageId pid_;
    /**
     * The main memory buffer for loading the content of the disk page 
     * that contains the node.
     */
-    int numKeys;
     char buffer[PageFile::PAGE_SIZE];
 
     RC clearBuffer();
@@ -120,6 +125,7 @@ class BTLeafNode {
 class BTNonLeafNode {
   public:
     BTNonLeafNode();
+    BTNonLeafNode(PageId pid);
 
    /**
     * Insert a (key, pid) pair to the node.
@@ -188,11 +194,15 @@ class BTNonLeafNode {
     void print();
 
   private:
+    // number of keys in the node
+    int numKeys;
+
+    // page id of this node in the tree's PageFile
+    PageId pid_;
    /**
     * The main memory buffer for loading the content of the disk page 
     * that contains the node.
     */
-    int numKeys;
     char buffer[PageFile::PAGE_SIZE];
 
     RC clearBuffer();
