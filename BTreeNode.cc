@@ -510,6 +510,8 @@ RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
     memcpy(&key, p, sizeof(int));
 
     if (key == searchKey) { // key found!
+      // copy over pid and return
+      memcpy(&pid, p+sizeof(int), sizeof(PageId));
       return RC_SUCCESS;
     } else if (key > searchKey) { // key doesn't exist
       return RC_NO_SUCH_RECORD;
