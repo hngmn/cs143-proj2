@@ -462,19 +462,30 @@ RC BTNonLeafNode::insert(int key, PageId pid){
  */
 RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, int& midKey)
 {
-
-	// TODO: When splitting non leaf nodes, there is one difference from
-	// splitting leaf nodes. When we split leaf node (key1, rid1, key2, rid2),
-	// we get (key1, rid1) and (key2, rid2). However when we split non leaf node
-	// (pid1, key1, pid2, key2, pid3, key3, pid4), we get (pid1, key1, pid2) and (pid3, key3, pid4).
-	// This is because the keyi is essentially an indicator for which nodes are stored on the left 
-	// and right side of the keyi; when key < keyi, follow pid(i-1) and when 
-	// key > keyi, follow pid(i+1).
-	//
-	// NOTE: Don't forget that there is an initial pid (e.g. pid1 in the example) and don't forget
-	// to delete the key that no longer partitions the node (e.g. key2 in the example).
-	// 
-	// I already fixed the midOffset, however the math for memcpy still needs to be done.
+  // impl notes: -sean
+  // 
+  // I went with calculating left-cut (lc) and right-cut (rc) as below:
+  //     lc = sizeof(p) + (nkeys/2 * RECORD_PAIR_SIZE)
+  //     rc = lc + sizeof(k);
+  // Where p is PageId and k is key
+  // This results in cuts as shown below:
+  // 
+  // case 1: k-odd, p-even
+  // +-------------------------------------------+
+  // | p | k | p | k | p | k | p | k | p | k | p |
+  // +-------------------------------------------+
+  //                     |   |
+  //                    lc   rc
+  //  <----left node---->     <----right node--->
+  // 
+  // case 2: k-even, p-odd
+  // +---------------------------------------------------+
+  // | p | k | p | k | p | k | p | k | p | k | p | k | p |
+  // +---------------------------------------------------+
+  //                             |   |
+  //                            lc   rc
+  //  <--------left node-------->     <----right node--->
+  // 
 
 	// Validate parameters
 	if (sibling.getKeyCount())
@@ -486,36 +497,34 @@ RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, in
 
 	// Parameters are valid
 
-	// Get number of keys to store in each
-	// And calculate the offset of the midway point
-	int numHalfKeys = (getKeyCount() + 1) / 2;
-	sibling.numKeys = getKeyCount() - numHalfKeys;
-	numKeys = getKeyCount() - sibling.getKeyCount();
+	// Get number of keys to store in original
+	int numHalfKeys = getKeyCount() / 2;
 
-	// NOTE: + sizeof(PageId) because there is an initial pageId in the beginning
-	// of non leaf nodes
-	int midOffset = numHalfKeys * RECORD_PAIR_SIZE + sizeof(PageId);
+  // leftcut and right cut are the left and right side of the key that will be 'deleted'
+  int leftcut = sizeof(PageId) + (numHalfKeys * RECORD_PAIR_SIZE);
+  int rightcut = leftcut + sizeof(int);
 
 	// Copy second half of node into sibling
-	memcpy(sibling.buffer, buffer + midOffset, PageFile::PAGE_SIZE - midOffset);
+	memcpy(sibling.buffer, buffer + rightcut, PageFile::PAGE_SIZE - rightcut);
 
-	// Erase second half of the node
-	memset(buffer + midOffset, 0, PageFile::PAGE_SIZE - midOffset);
+	// Erase second half of original
+	memset(buffer + leftcut, 0, PageFile::PAGE_SIZE - leftcut);
 
 	// Choose which buffer to insert new key into
 	int siblingFirstKey;
 	int thisNodeFirstKey;
 
-	memcpy(&siblingFirstKey, sibling.buffer, sizeof(int));
-	memcpy(&thisNodeFirstKey, buffer, sizeof(int));
+  // get the first key of each node; they are one PageId offset from start of buffer
+	memcpy(&siblingFirstKey, sibling.buffer + sizeof(PageId), sizeof(int));
+	memcpy(&thisNodeFirstKey, buffer + sizeof(PageId), sizeof(int));
 
 	if (key < siblingFirstKey) // Belongs in lower half
 		insert(key, pid);
 	else // Belongs in upper half
 		sibling.insert(key, pid);
 
-	// Store first sibling key in siblingKey
-	memcpy(&midKey, sibling.buffer, sizeof(int));
+	// output sibling's first key in midKey
+	memcpy(&midKey, sibling.buffer + sizeof(PageId), sizeof(int));
 
 	// Success
 	return RC_SUCCESS;
