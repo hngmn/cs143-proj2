@@ -86,6 +86,7 @@ class BTreeIndex {
    * @return 0 if searchKey is found. Othewise, an error code
    */
   RC locate(int searchKey, IndexCursor& cursor);
+  RC locateRec(int currTreeHeight, PageId currPid, int searchKey, IndexCursor& cursor);
 
   /**
    * Read the (key, rid) pair at the location specified by the index cursor,

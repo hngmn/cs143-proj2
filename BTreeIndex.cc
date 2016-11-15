@@ -22,6 +22,7 @@ const int RC_PF_OPEN_ERROR = -11;
 const int RC_PF_READ_ERROR = -12;
 const int RC_PF_WRITE_ERROR = -13;
 const int RC_INSERT_ERROR = -14;
+// RC_NO_SUCH_RECORD already defined
 
 /*
  * BTreeIndex constructor
@@ -81,7 +82,7 @@ RC BTreeIndex::open(const string& indexname, char mode) {
 
 		memcpy(&tempRootId, buffer, sizeof(PageId));
 		memcpy(&tempTreeHeight, buffer + sizeof(PageId), sizeof(int));
-	
+
 		// Store found values only if they are valid
 		// We know that tempRootId must be > 0 because we reserved pid = 0
 		if (tempRootId != 0 && tempTreeHeight >= 0) {
@@ -275,9 +276,49 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
  *                    smaller than searchKey.
  * @return 0 if searchKey is found. Othewise an error code
  */
-RC BTreeIndex::locate(int searchKey, IndexCursor& cursor)
-{
-    return 0;
+RC BTreeIndex::locate(int searchKey, IndexCursor& cursor) {
+
+	// Tree is empty
+	if (treeHeight <= 0) {
+		cerr << "Tree is empty." << endl;
+		return RC_NO_SUCH_RECORD;
+	}
+
+	// Traverse down the tree
+    return locateRec(1, rootPid, searchKey, cursor);
+}
+
+RC BTreeIndex::locateRec(int currTreeHeight, PageId currPid, int searchKey, IndexCursor& cursor) {
+	
+	// We are at the leaf
+	if (currTreeHeight == treeHeight) {
+		cursor.pid = currPid;
+
+		// Read in leaf
+		BTLeafNode leafNode;
+		leafNode.read(currPid, pf);
+
+		// searchKey is not in leafNode
+		if (leafNode.locate(searchKey, cursor.eid)) {
+			cerr << "Could not locate searchKey: " << searchKey;
+			cerr << " in leafNode with pid: " << currPid << endl;
+			cerr << endl;
+			return RC_NO_SUCH_RECORD;
+		}
+
+		return RC_SUCCESS;
+	}
+
+	// We are at a non leaf node
+	BTNonLeafNode currNode;
+	currNode.read(currPid, pf);
+
+	// Find child node to follow
+	PageId childPid;
+	currNode.locateChildPtr(searchKey, childPid);
+
+	// Follow child node
+	return locateRec(currTreeHeight + 1, childPid, searchKey, cursor);
 }
 
 /*
@@ -288,9 +329,36 @@ RC BTreeIndex::locate(int searchKey, IndexCursor& cursor)
  * @param rid[OUT] the RecordId stored at the index cursor location.
  * @return error code. 0 if no error
  */
-RC BTreeIndex::readForward(IndexCursor& cursor, int& key, RecordId& rid)
-{
-    return 0;
+RC BTreeIndex::readForward(IndexCursor& cursor, int& key, RecordId& rid) {
+    
+    RC error;
+    BTLeafNode leafNode;
+
+    // Read in the leaf node
+    if (error = leafNode.read(cursor.pid, pf)) {
+    	cerr << "Could not read from cursor.pid: " << cursor.pid << endl;
+    	return error;
+    }
+
+    // Get (key, rid) from eid
+   	if (error = leafNode.readEntry(cursor.eid, key, rid)) {
+   		cerr << "Could not read entry cursor.eid: " << cursor.eid << endl;
+   		return error;
+   	}
+
+   	// Get next entry
+
+   	// If cursor is at the end of the node, go to next node pointer
+   	if (cursor.eid + 1 >= leafNode.getKeyCount()) {
+   		cursor.eid = 0;
+   		cursor.pid = leafNode.getNextNodePtr();
+
+   	// Else just go to the next entry
+   	} else {
+   		cursor.eid++;
+   	}
+
+    return RC_SUCCESS;
 }
 
 int main() {
@@ -320,9 +388,9 @@ int main() {
 
 	test.open("testFile", 'w');
 
-	BTNonLeafNode root;
-	root.read(3, test.pf);
-	root.print();
+	// BTNonLeafNode root;
+	// root.read(3, test.pf);
+	// root.print();
 
 	// BTLeafNode first;
 	// first.read(1, test.pf);
@@ -336,10 +404,46 @@ int main() {
 	// third.read(4, test.pf);
 	// third.print();
 
-	for (int i = 1; i < 100000; i++)
-		test.insert(i, RecordId{i, i});
+	// for (int i = 1; i < 120; i++)
+	// 	test.insert(i, RecordId{i, i});
 
-	test.print();
+	// BTreeIndex::readForward
+	// IndexCursor cursor;
+	// cursor.eid = 42;
+	// cursor.pid = 1;
+
+	// RecordId rid;
+	// int key;
+
+	// test.readForward(cursor, key, rid);
+
+	// cerr << "cursor.eid: " << cursor.eid;
+	// cerr << " cursor.pid: " << cursor.pid << endl;
+	// cerr << "key: " << key << endl;
+	// cerr << "rid.pid: " << rid.pid << endl;
+	// cerr << endl;
+
+	// test.readForward(cursor, key, rid);
+
+	// cerr << "cursor.eid: " << cursor.eid;
+	// cerr << " cursor.pid: " << cursor.pid << endl;
+	// cerr << "key: " << key << endl;
+	// cerr << "rid.pid: " << rid.pid << endl;
+	// cerr << endl;
+
+	// BTreeIndex::locate
+	// IndexCursor cursor;
+	// int key = 95;
+
+	// test.locate(key, cursor);
+
+	// cerr << "cursor.eid: " << cursor.eid;
+	// cerr << " cursor.pid: " << cursor.pid << endl;
+	// cerr << "key: " << key << endl;
+	// cerr << endl;
+
+	// test.print();
+	test.close();
 
 	return RC_SUCCESS;
 }

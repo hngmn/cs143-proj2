@@ -442,7 +442,6 @@ RC BTNonLeafNode::insert(int key, PageId pid){
 
 	// Reassign newBuffer to buffer and free memory
 	memcpy(buffer, newBuffer, PageFile::PAGE_SIZE);
-	free(newBuffer);
 
 	// Success
 	numKeys++;
