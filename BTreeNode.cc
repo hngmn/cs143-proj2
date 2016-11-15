@@ -54,8 +54,10 @@ RC BTLeafNode::read(PageId pid, const PageFile& pf){
 
 	// Read in page into memory buffer
 	if (rc = pf.read(pid, buffer)) {
-		cerr << "Error Code: " << rc << endl;
+		return rc;
 	}
+
+	numKeys = getKeyCount();
 
 	return RC_SUCCESS;
 }
@@ -71,7 +73,7 @@ RC BTLeafNode::write(PageId pid, PageFile& pf){
 	int rc;
 
 	if (rc = pf.write(pid, buffer)) {
-		cerr << "Error Code: " << rc << endl;
+		return rc;
 	}
 
 	return RC_SUCCESS;
@@ -82,7 +84,15 @@ RC BTLeafNode::write(PageId pid, PageFile& pf){
  * @return the number of keys in the node
  */
 int BTLeafNode::getKeyCount(){
-	return numKeys;
+	int count = 0;
+	char* traverse = buffer;
+
+	while (*traverse) {
+		count++;
+		traverse += RECORD_PAIR_SIZE;
+	}
+
+	return count;
 }
 
 /*
@@ -332,7 +342,6 @@ BTNonLeafNode::BTNonLeafNode() {
 BTNonLeafNode::BTNonLeafNode(PageId pid) {
 	clearBuffer();
 	numKeys = 0;
-  pid_ = pid;
 }
 
 RC BTNonLeafNode::clearBuffer() {
@@ -352,7 +361,7 @@ RC BTNonLeafNode::read(PageId pid, const PageFile& pf){
 
 	// Read in page into memory buffer
 	if (rc = pf.read(pid, buffer)) {
-		cerr << "Error Code: " << rc << endl;
+		return rc;
 	}
 
 	return RC_SUCCESS;
@@ -369,7 +378,7 @@ RC BTNonLeafNode::write(PageId pid, PageFile& pf) {
 	int rc;
 
 	if (rc = pf.write(pid, buffer)) {
-		cerr << "Error Code: " << rc << endl;
+		return rc;
 	}
 
 	return RC_SUCCESS;
@@ -380,7 +389,15 @@ RC BTNonLeafNode::write(PageId pid, PageFile& pf) {
  * @return the number of keys in the node
  */
 int BTNonLeafNode::getKeyCount(){
-	return numKeys;
+	int count = 0;
+	char* traverse = buffer;
+
+	while (*traverse) {
+		count++;
+		traverse += PAGE_PAIR_SIZE;
+	}
+
+	return count;
 }
 
 
@@ -575,7 +592,7 @@ void BTNonLeafNode::print() {
 		traverse += PAGE_PAIR_SIZE;
 	}
 }
-
+/*
 // For testing
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
@@ -618,6 +635,8 @@ int main() {
 	// leafNode->insert(3, RecordId{3,30});
 	// leafNode->insert(5, RecordId{5,50});
 	// leafNode->insert(2, RecordId{2,20});
+
+	// cerr << leafNode->getKeyCount() << endl;
 
 	// int key;
 	// RecordId rid;
@@ -664,11 +683,12 @@ int main() {
 	// leafNode2.print();
 
 	// BTNonLeafNode::insert
-	nonLeafNode->insert(1, 10);
-	nonLeafNode->insert(3, 30);
-	nonLeafNode->insert(5, 50);
-	nonLeafNode->insert(2, 20);
+	// nonLeafNode->insert(1, 10);
+	// nonLeafNode->insert(3, 30);
+	// nonLeafNode->insert(5, 50);
+	// nonLeafNode->insert(2, 20);
 
-	// leafNode->print();
-	nonLeafNode->print();
+	// // leafNode->print();
+	// nonLeafNode->print();
 }
+*/

@@ -21,6 +21,7 @@ const int RC_PF_CLOSE_ERROR = -10;
 const int RC_PF_OPEN_ERROR = -11;
 const int RC_PF_READ_ERROR = -12;
 const int RC_PF_WRITE_ERROR = -13;
+const int RC_INSERT_ERROR = -14;
 
 /*
  * BTreeIndex constructor
@@ -42,6 +43,11 @@ void BTreeIndex::print() {
 	cerr << "rootPid: " << rootPid << endl;
 	cerr << "treeHeight: " << treeHeight << endl;
 	cerr << endl;
+
+	// Print root node information
+	BTLeafNode root(rootPid);
+	root.read(rootPid, pf);
+	root.print();
 }
 
 /*
@@ -126,11 +132,12 @@ RC BTreeIndex::insert(int key, const RecordId& rid) {
 	if (treeHeight == 0) {
 
 		// Create a new leaf node
+		int nextPid = pf.endPid() == 0 ? 1 : pf.endPid();
 		BTLeafNode leafNode;
 		leafNode.insert(key, rid);
 
 		// Create root node at next pid that is not pid = 0
-		rootPid = pf.endPid() == 0 ? 1 : pf.endPid();
+		rootPid = nextPid;
 
 		treeHeight++;
 
@@ -150,30 +157,43 @@ RC BTreeIndex::insert(int key, const RecordId& rid) {
 	//
 	// 4.
 	// 
-	return insertRec(key, rid, 1);
+	return insertRec(key, rid, 1, rootPid);
 }
 
-RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight) {
-
-
+RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageId currPid) {
 
 	// We've reach the leaf node level, so insert the leaf node
 	if (currTreeHeight == treeHeight) {
 
-		// 2. No Overflow
+		// Read in leaf node
+		BTLeafNode leafNode;
+		leafNode.read(currPid, pf);
 
+		// 2. No Overflow
+		if (leafNode.insert(key, rid) == RC_SUCCESS) {
+			leafNode.write(currPid, pf);
+			return RC_SUCCESS;
+		}
 
 		// TODO: 3. Leaf Overflow
-		// (Probably using an if else statement) with case 2.
 
 	// We are at a non leaf node level
 	} else {
 
-		// TODO: We need to traverse down the tree correctly, so we need to follow pids.
-		// In a non leaf node, we need to look at which pid we should follow using key,
-		// probably by using some function in BTreeNode.h.
+		// Read in current node
+		BTNonLeafNode currNode;
+		currNode.read(currPid, pf);
 
-		return insertRec(key, rid, currTreeHeight + 1);
+		// Locate the child pointer
+		PageId childPid = -1;	
+
+		if (currNode.locateChildPtr(key, childPid)) {
+			cerr << "Could not locate childPid with key: " << key << endl;
+			return RC_INSERT_ERROR;
+		};
+
+		// Go deeper into the tree
+		return insertRec(key, rid, currTreeHeight + 1, childPid);
 	}
 
 	return RC_SUCCESS;
@@ -236,6 +256,15 @@ int main() {
 	// // index->insert(2, RecordId{2, 20});
 	// index->close();
 	// index->print();
+
+	// BTreeIndex::insertRec (2.)
+	BTreeIndex test;
+	test.open("testFile", 'w');	
+
+	for (int i = 1; i < 200; i++)
+		test.insert(i, RecordId{i, i});
+
+	test.print();
 
 	return RC_SUCCESS;
 }
