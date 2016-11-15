@@ -562,7 +562,7 @@ RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
 
 	// Reached the end of the node, return the last pid
 	memcpy(&pid, p-sizeof(PageId), sizeof(PageId));
-	return RC_NO_SUCH_RECORD;
+	return RC_SUCCESS;
 }
 
 /*
