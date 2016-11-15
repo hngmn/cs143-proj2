@@ -157,10 +157,12 @@ RC BTreeIndex::insert(int key, const RecordId& rid) {
 	//
 	// 4.
 	// 
-	return insertRec(key, rid, 1, rootPid);
+	return insertRec(key, rid, 1, rootPid, -1);
 }
 
-RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageId currPid) {
+RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageId currPid, PageId parentPid) {
+
+	int error;
 
 	// We've reach the leaf node level, so insert the leaf node
 	if (currTreeHeight == treeHeight) {
@@ -175,7 +177,54 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 			return RC_SUCCESS;
 		}
 
-		// TODO: 3. Leaf Overflow
+		// 3. Leaf Overflow
+		int newLeafNodePid = pf.endPid();
+		BTLeafNode newLeafNode;
+		int newLeafNodeKey;
+
+		if (error = leafNode.insertAndSplit(key, rid, newLeafNode, newLeafNodeKey)) {
+			cerr << "Could not insert and split leaf node, error code: " << error << endl;
+			return error;	
+		}
+
+		// Set next node pointers
+		newLeafNode.setNextNodePtr(leafNode.getNextNodePtr());
+		leafNode.setNextNodePtr(newLeafNodePid);
+
+		// Write leafNode and newLeafNode out to disk
+		leafNode.write(currPid, pf);
+		newLeafNode.write(newLeafNodePid, pf);
+
+		// Insert new leaf node information into parent node if not the root
+		if (currTreeHeight != 1 && parentPid != -1) {
+
+			// No overflow in parent node
+			BTNonLeafNode parent;
+			parent.read(parentPid, pf);
+
+			if (parent.insert(newLeafNodeKey, newLeafNodePid) == RC_SUCCESS) {
+				parent.write(parentPid, pf);
+				return RC_SUCCESS;
+			}
+
+			// TODO: Overflow
+
+		// At root, need to make a new root
+		} else {
+
+			// Initialize a new root
+			int newRootPid = pf.endPid();
+			BTNonLeafNode newRoot;
+
+			newRoot.initializeRoot(currPid, key, newLeafNodePid);
+			newRoot.write(newRootPid, pf);
+
+			// Update BTreeIndex
+			rootPid = newRootPid;
+			treeHeight++;
+		}
+
+
 
 	// We are at a non leaf node level
 	} else {
@@ -193,7 +242,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 		};
 
 		// Go deeper into the tree
-		return insertRec(key, rid, currTreeHeight + 1, childPid);
+		return insertRec(key, rid, currTreeHeight + 1, childPid, currPid);
 	}
 
 	return RC_SUCCESS;

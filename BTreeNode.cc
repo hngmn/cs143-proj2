@@ -26,6 +26,12 @@ const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / RECORD_
 /////////// BTLeafNode ///////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
+BTLeafNode::BTLeafNode() {
+	clearBuffer();
+	numKeys = 0;
+	pid_ = -1;
+}
+
 BTLeafNode::BTLeafNode(PageId pid) {
 	clearBuffer();
 	numKeys = 0;
@@ -195,10 +201,10 @@ RC BTLeafNode::insertAndSplit(int key, const RecordId& rid,
 	// Set the next node pointer for this node
 	// TODO: is the next node pointer (a PageId) supposed to be 
 	// siblings first record id OR siblings first key?
-	RecordId siblingFirstRecordId;
+	// RecordId siblingFirstRecordId;
 
-	memcpy(&siblingFirstRecordId, sibling.buffer + sizeof(int), sizeof(RecordId));
-	setNextNodePtr(siblingFirstRecordId.pid);
+	// memcpy(&siblingFirstRecordId, sibling.buffer + sizeof(int), sizeof(RecordId));
+	// setNextNodePtr(siblingFirstRecordId.pid);
 
 	// Store first sibling key in siblingKey
 	memcpy(&siblingKey, sibling.buffer, sizeof(int));
@@ -328,6 +334,11 @@ void BTLeafNode::print() {
 /////////// BTNonLeafNode ////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
+BTNonLeafNode::BTNonLeafNode() {
+	clearBuffer();
+	numKeys = 0;
+	pid_ = -1;
+}
 
 BTNonLeafNode::BTNonLeafNode(PageId pid) {
 	clearBuffer();
@@ -355,6 +366,8 @@ RC BTNonLeafNode::read(PageId pid, const PageFile& pf){
 		return rc;
 	}
 
+	numKeys = getKeyCount();
+
 	return RC_SUCCESS;
 }
     
@@ -381,7 +394,7 @@ RC BTNonLeafNode::write(PageId pid, PageFile& pf) {
  */
 int BTNonLeafNode::getKeyCount(){
 	int count = 0;
-	char* traverse = buffer;
+	char* traverse = buffer + sizeof(PageId);
 
 	while (*traverse) {
 		count++;
@@ -455,6 +468,20 @@ RC BTNonLeafNode::insert(int key, PageId pid){
  */
 RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, int& midKey)
 {
+
+	// TODO: When splitting non leaf nodes, there is one difference from
+	// splitting leaf nodes. When we split leaf node (key1, rid1, key2, rid2),
+	// we get (key1, rid1) and (key2, rid2). However when we split non leaf node
+	// (pid1, key1, pid2, key2, pid3, key3, pid4), we get (pid1, key1, pid2) and (pid3, key3, pid4).
+	// This is because the keyi is essentially an indicator for which nodes are stored on the left 
+	// and right side of the keyi; when key < keyi, follow pid(i-1) and when 
+	// key > keyi, follow pid(i+1).
+	//
+	// NOTE: Don't forget that there is an initial pid (e.g. pid1 in the example) and don't forget
+	// to delete the key that no longer partitions the node (e.g. key2 in the example).
+	// 
+	// I already fixed the midOffset, however the math for memcpy still needs to be done.
+
 	// Validate parameters
 	if (sibling.getKeyCount())
 		return RC_SIBLING_NOT_EMPTY;
@@ -471,16 +498,15 @@ RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, in
 	sibling.numKeys = getKeyCount() - numHalfKeys;
 	numKeys = getKeyCount() - sibling.getKeyCount();
 
-	int midOffset = numHalfKeys * RECORD_PAIR_SIZE;
+	// NOTE: + sizeof(PageId) because there is an initial pageId in the beginning
+	// of non leaf nodes
+	int midOffset = numHalfKeys * RECORD_PAIR_SIZE + sizeof(PageId);
 
 	// Copy second half of node into sibling
-	// Set next node pointer to this node's next node pointer
 	memcpy(sibling.buffer, buffer + midOffset, PageFile::PAGE_SIZE - midOffset);
 
 	// Erase second half of the node
-	// Will set key of this later, because it could be the newly inserted key
 	memset(buffer + midOffset, 0, PageFile::PAGE_SIZE - midOffset);
-	
 
 	// Choose which buffer to insert new key into
 	int siblingFirstKey;
@@ -622,10 +648,10 @@ int main() {
 	// cerr << "Next Node Ptr: " << leafNode->getNextNodePtr() << endl;
 
 	// BTLeafNode::readEntry
-	// leafNode->insert(1, RecordId{1,10});
-	// leafNode->insert(3, RecordId{3,30});
-	// leafNode->insert(5, RecordId{5,50});
-	// leafNode->insert(2, RecordId{2,20});
+	leafNode->insert(1, RecordId{1,10});
+	leafNode->insert(3, RecordId{3,30});
+	leafNode->insert(5, RecordId{5,50});
+	leafNode->insert(2, RecordId{2,20});
 
 	// cerr << leafNode->getKeyCount() << endl;
 
@@ -679,7 +705,7 @@ int main() {
 	// nonLeafNode->insert(5, 50);
 	// nonLeafNode->insert(2, 20);
 
-	// // leafNode->print();
+	leafNode->print();
 	// nonLeafNode->print();
 }
 */
