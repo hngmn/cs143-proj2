@@ -33,6 +33,7 @@ typedef struct {
  */
 class BTreeIndex {
  public:
+  PageFile pf;
   BTreeIndex();
 
   RC clearBuffer();
@@ -97,7 +98,7 @@ class BTreeIndex {
   RC readForward(IndexCursor& cursor, int& key, RecordId& rid);
 
  private:
-  PageFile pf;         /// the PageFile used to store the actual b+tree in disk
+  // PageFile pf;         /// the PageFile used to store the actual b+tree in disk
 
   // NOTE: For the page with pid = 0, we will store rootPid
   // at offset 0 and treeHeight at offset + sizeof(PageId).

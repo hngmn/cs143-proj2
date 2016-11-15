@@ -1,4 +1,5 @@
 #include "BTreeNode.h"
+#include <algorithm>
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
@@ -127,7 +128,7 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 
 	// Create a new buffer with
 	// buffer[0] to buffer[offset], (key, rid), buffer[offset] to buffer[PageFile::PAGE_SIZE]
-	char* newBuffer = (char *) malloc(PageFile::PAGE_SIZE);
+	char newBuffer[PageFile::PAGE_SIZE] = {0};
 	memcpy(newBuffer, buffer, offset); // buffer[0] to buffer[offset]
 	memcpy(newBuffer + offset, &key, sizeof(int)); // key
 	memcpy(newBuffer + offset + sizeof(int), &rid, sizeof(RecordId)); // rid
@@ -138,7 +139,6 @@ RC BTLeafNode::insert(int key, const RecordId& rid){
 
 	// Reassign newBuffer to buffer and free memory
 	memcpy(buffer, newBuffer, PageFile::PAGE_SIZE);
-	free(newBuffer);
 
 	// Success
 	numKeys++;
@@ -168,23 +168,22 @@ RC BTLeafNode::insertAndSplit(int key, const RecordId& rid,
 
 	// Parameters are valid
 
-	// Get number of keys to store in each
+	// Get number of half keys
 	// And calculate the offset of the midway point
 	int numHalfKeys = (getKeyCount() + 1) / 2;
+
+	// Get number of keys in each
 	sibling.numKeys = getKeyCount() - numHalfKeys;
-	numKeys = getKeyCount() - sibling.getKeyCount();
+	numKeys = getKeyCount() - sibling.numKeys;
 
 	int midOffset = numHalfKeys * RECORD_PAIR_SIZE;
 
 	// Copy second half of node into sibling
-	// Set next node pointer to this node's next node pointer
 	memcpy(sibling.buffer, buffer + midOffset, PageFile::PAGE_SIZE - midOffset);
-	sibling.setNextNodePtr(getNextNodePtr());
 
 	// Erase second half of the node
 	// Will set key of this later, because it could be the newly inserted key
 	memset(buffer + midOffset, 0, midOffset);
-	
 
 	// Choose which buffer to insert new key into
 	int siblingFirstKey;
@@ -197,14 +196,6 @@ RC BTLeafNode::insertAndSplit(int key, const RecordId& rid,
 		insert(key, rid);
 	else // Belongs in upper half
 		sibling.insert(key, rid);
-
-	// Set the next node pointer for this node
-	// TODO: is the next node pointer (a PageId) supposed to be 
-	// siblings first record id OR siblings first key?
-	// RecordId siblingFirstRecordId;
-
-	// memcpy(&siblingFirstRecordId, sibling.buffer + sizeof(int), sizeof(RecordId));
-	// setNextNodePtr(siblingFirstRecordId.pid);
 
 	// Store first sibling key in siblingKey
 	memcpy(&siblingKey, sibling.buffer, sizeof(int));
@@ -310,6 +301,8 @@ RC BTLeafNode::setNextNodePtr(PageId pid){
 void BTLeafNode::print() {
 	
 	char* traverse = buffer;
+
+	cerr << "numKeys: " << numKeys << endl;
 
 	while (*traverse) {
 		int key;
@@ -439,6 +432,7 @@ RC BTNonLeafNode::insert(int key, PageId pid){
 	// Create a new buffer with
 	// buffer[0] to buffer[offset], (key, rid), buffer[offset] to buffer[PageFile::PAGE_SIZE]
 	char* newBuffer = (char *) malloc(PageFile::PAGE_SIZE);
+	memset(newBuffer, 0, PageFile::PAGE_SIZE);
 	memcpy(newBuffer, buffer, offset); // buffer[0] to buffer[offset]
 	memcpy(newBuffer + offset, &key, sizeof(int)); // key
 	memcpy(newBuffer + offset + sizeof(int), &pid, sizeof(PageId)); // pid
@@ -553,7 +547,7 @@ RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
 
 	// Reached the end of the node, return the last pid
 	memcpy(&pid, p-sizeof(PageId), sizeof(PageId));
-	return RC_NO_SUCH_RECORD;
+	return RC_SUCCESS;
 }
 
 /*
@@ -606,7 +600,7 @@ void BTNonLeafNode::print() {
 		traverse += PAGE_PAIR_SIZE;
 	}
 }
-
+/*
 // For testing
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
@@ -645,10 +639,10 @@ int main() {
 	// cerr << "Next Node Ptr: " << leafNode->getNextNodePtr() << endl;
 
 	// BTLeafNode::readEntry
-	leafNode->insert(1, RecordId{1,10});
-	leafNode->insert(3, RecordId{3,30});
-	leafNode->insert(5, RecordId{5,50});
-	leafNode->insert(2, RecordId{2,20});
+	// leafNode->insert(1, RecordId{1,10});
+	// leafNode->insert(3, RecordId{3,30});
+	// leafNode->insert(5, RecordId{5,50});
+	// leafNode->insert(2, RecordId{2,20});
 
 	// cerr << leafNode->getKeyCount() << endl;
 
@@ -677,37 +671,36 @@ int main() {
 	// nonLeafNode->initializeRoot(1,12,3);
 	// nonLeafNode->print();
 
-	// // BTLeafNode::insertAndSplit
-	// BTLeafNode* leafNode1 = new BTLeafNode();
-	// BTLeafNode leafNode2;
+	// BTLeafNode::insertAndSplit
+	BTLeafNode leafNode1;
+	BTLeafNode leafNode2;
 
-	// int siblingKey;
+	int siblingKey;
 
-	// leafNode1->insert(1, RecordId{1,10});
-	// leafNode1->insert(3, RecordId{3,30});
-	// leafNode1->insert(5, RecordId{5,50});
-	// leafNode1->insert(2, RecordId{2,20});
+	for (int i = 1 ; i < 87; i++)
+		leafNode1.insert(i, RecordId{i, i});
 
-	// leafNode1->insertAndSplit(4, RecordId{4, 40}, leafNode2, siblingKey);
+	leafNode1.insertAndSplit(87, RecordId{87, 87}, leafNode2, siblingKey);
 
-	// cerr << "Leaf Node 1" << endl;
-	// leafNode1->print();
+	cerr << "Leaf Node 1" << endl;
+	leafNode1.print();
 
-	// cerr << "Leaf Node 2" << endl;
-	// leafNode2.print();
+	cerr << "Leaf Node 2" << endl;
+	leafNode2.print();
 
 	// BTNonLeafNode::insert
-	nonLeafNode->insert(1, 10);
-	nonLeafNode->insert(3, 30);
-	nonLeafNode->insert(5, 50);
-	nonLeafNode->insert(2, 20);
+	// nonLeafNode->insert(1, 10);
+	// nonLeafNode->insert(3, 30);
+	// nonLeafNode->insert(5, 50);
+	// nonLeafNode->insert(2, 20);
 
-	PageId result;
+	// PageId result;
 
-	nonLeafNode->locateChildPtr(0, result);
+	// nonLeafNode->locateChildPtr(0, result);
 
-	cerr << result << endl;
+	// cerr << result << endl;
 
 	// leafNode->print();
 	// nonLeafNode->print();
 }
+*/

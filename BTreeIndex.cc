@@ -124,8 +124,8 @@ RC BTreeIndex::insert(int key, const RecordId& rid) {
 
 	// TODO: There are four different cases upon inserting:
 	// (COMPLETE) 1. New Root
-	// (INCOMPLETE) 2. No Overflow
-	// (INCOMPLETE) 3. Leaf Overflow
+	// (COMPLETE) 2. No Overflow
+	// (COMPLETE) 3. Leaf Overflow
 	// (INCOMPLETE) 4. Non-Leaf Overflow
 
 	// 1. New Root
@@ -196,13 +196,18 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 		newLeafNode.write(newLeafNodePid, pf);
 
 		// Insert new leaf node information into parent node if not the root
-		if (currTreeHeight != 1 && parentPid != -1) {
+		if (currTreeHeight != 1) {
 
 			// No overflow in parent node
 			BTNonLeafNode parent;
 			parent.read(parentPid, pf);
 
 			if (parent.insert(newLeafNodeKey, newLeafNodePid) == RC_SUCCESS) {
+				cerr << "key: " << key << endl;
+				cerr << "parentPid: " << parentPid << endl;
+				cerr << "newLeafNodeKey: " << newLeafNodeKey << endl;
+				cerr << "newLeafNodePid: " << newLeafNodePid << endl;
+				cerr << endl;
 				parent.write(parentPid, pf);
 				return RC_SUCCESS;
 			}
@@ -216,7 +221,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 			int newRootPid = pf.endPid();
 			BTNonLeafNode newRoot;
 
-			newRoot.initializeRoot(currPid, key, newLeafNodePid);
+			newRoot.initializeRoot(currPid, newLeafNodeKey, newLeafNodePid);
 			newRoot.write(newRootPid, pf);
 
 			// Update BTreeIndex
@@ -240,6 +245,10 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 			cerr << "Could not locate childPid with key: " << key << endl;
 			return RC_INSERT_ERROR;
 		};
+
+		// cerr << "childPid: " << childPid << endl;
+		// cerr << "currPid: " << currPid << endl;
+		// cerr << "currTreeHeight: " << currTreeHeight << endl;
 
 		// Go deeper into the tree
 		return insertRec(key, rid, currTreeHeight + 1, childPid, currPid);
@@ -308,9 +317,26 @@ int main() {
 
 	// BTreeIndex::insertRec (2.)
 	BTreeIndex test;
-	test.open("testFile", 'w');	
 
-	for (int i = 1; i < 200; i++)
+	test.open("testFile", 'w');
+
+	BTNonLeafNode root;
+	root.read(3, test.pf);
+	root.print();
+
+	// BTLeafNode first;
+	// first.read(1, test.pf);
+	// first.print();
+
+	// BTLeafNode second;
+	// second.read(2, test.pf);
+	// second.print();
+
+	// BTLeafNode third;
+	// third.read(4, test.pf);
+	// third.print();
+
+	for (int i = 1; i < 100000; i++)
 		test.insert(i, RecordId{i, i});
 
 	test.print();
