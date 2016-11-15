@@ -536,27 +536,24 @@ RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, in
  */
 RC BTNonLeafNode::locateChildPtr(int searchKey, PageId& pid)
 {
-  char *p;        // traversal pointer
-  int key;        // traversal key
-  int offset = 0; // offset
+	char *p = buffer + sizeof(PageId); // traversal pointer
+	int key; // traversal key
 
-  while (*p != 0) {
-    memcpy(&key, p, sizeof(int));
+	while (*p != 0) {
+  		memcpy(&key, p, sizeof(int));
 
-    if (key == searchKey) { // key found!
-      // copy over pid and return
-      memcpy(&pid, p+sizeof(int), sizeof(PageId));
-      return RC_SUCCESS;
-    } else if (key > searchKey) { // key doesn't exist
-      return RC_NO_SUCH_RECORD;
-    }
+		if (key > searchKey) {
+			// Return pid on left side of key
+			memcpy(&pid, p-sizeof(PageId), sizeof(PageId));
+			return RC_SUCCESS;
+		}
 
-    p += PAGE_PAIR_SIZE;
-    offset++;
-  }
+		p += PAGE_PAIR_SIZE;
+	}
 
-  // node exhausted; key does not exist
-  return RC_NO_SUCH_RECORD;
+	// Reached the end of the node, return the last pid
+	memcpy(&pid, p-sizeof(PageId), sizeof(PageId));
+	return RC_NO_SUCH_RECORD;
 }
 
 /*
@@ -609,7 +606,7 @@ void BTNonLeafNode::print() {
 		traverse += PAGE_PAIR_SIZE;
 	}
 }
-/*
+
 // For testing
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
@@ -700,12 +697,17 @@ int main() {
 	// leafNode2.print();
 
 	// BTNonLeafNode::insert
-	// nonLeafNode->insert(1, 10);
-	// nonLeafNode->insert(3, 30);
-	// nonLeafNode->insert(5, 50);
-	// nonLeafNode->insert(2, 20);
+	nonLeafNode->insert(1, 10);
+	nonLeafNode->insert(3, 30);
+	nonLeafNode->insert(5, 50);
+	nonLeafNode->insert(2, 20);
 
-	leafNode->print();
+	PageId result;
+
+	nonLeafNode->locateChildPtr(0, result);
+
+	cerr << result << endl;
+
+	// leafNode->print();
 	// nonLeafNode->print();
 }
-*/
