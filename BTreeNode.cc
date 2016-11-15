@@ -26,15 +26,10 @@ const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / RECORD_
 /////////// BTLeafNode ///////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-BTLeafNode::BTLeafNode() {
-	clearBuffer();
-	numKeys = 0;
-}
-
 BTLeafNode::BTLeafNode(PageId pid) {
 	clearBuffer();
 	numKeys = 0;
-  pid_ = pid;
+	pid_ = pid;
 }
 
 RC BTLeafNode::clearBuffer() {
@@ -334,14 +329,10 @@ void BTLeafNode::print() {
 //////////////////////////////////////////////////////////////////////
 
 
-BTNonLeafNode::BTNonLeafNode() {
-	clearBuffer();
-	numKeys = 0;
-}
-
 BTNonLeafNode::BTNonLeafNode(PageId pid) {
 	clearBuffer();
 	numKeys = 0;
+	pid_ = pid;
 }
 
 RC BTNonLeafNode::clearBuffer() {

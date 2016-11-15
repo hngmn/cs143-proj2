@@ -197,6 +197,8 @@ class BTNonLeafNode {
     // number of keys in the node
     int numKeys;
 
+    // page id of this node in the tree's PageFile
+    PageId pid_;
    /**
     * The main memory buffer for loading the content of the disk page 
     * that contains the node.
