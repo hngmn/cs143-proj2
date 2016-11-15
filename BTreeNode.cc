@@ -431,8 +431,7 @@ RC BTNonLeafNode::insert(int key, PageId pid){
 
 	// Create a new buffer with
 	// buffer[0] to buffer[offset], (key, rid), buffer[offset] to buffer[PageFile::PAGE_SIZE]
-	char* newBuffer = (char *) malloc(PageFile::PAGE_SIZE);
-	memset(newBuffer, 0, PageFile::PAGE_SIZE);
+	char newBuffer[PageFile::PAGE_SIZE] = {0};
 	memcpy(newBuffer, buffer, offset); // buffer[0] to buffer[offset]
 	memcpy(newBuffer + offset, &key, sizeof(int)); // key
 	memcpy(newBuffer + offset + sizeof(int), &pid, sizeof(PageId)); // pid
