@@ -600,14 +600,15 @@ void BTNonLeafNode::print() {
 		memcpy(&key, traverse, sizeof(int));
 		memcpy(&pageId, traverse + sizeof(int), sizeof(PageId));
 
-		cerr << "Key: " << key;
-		cerr << " Page Id: " << pageId;
-		cerr << endl;
+		cerr << "Key: " << pageId << endl;
+		cerr << "Page Id: " << key << endl;
 
 		traverse += PAGE_PAIR_SIZE;
 	}
+
+	cerr << endl;
 }
-/*
+
 // For testing
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
@@ -679,27 +680,48 @@ int main() {
 	// nonLeafNode->print();
 
 	// BTLeafNode::insertAndSplit
-	BTLeafNode leafNode1;
-	BTLeafNode leafNode2;
+	// BTLeafNode leafNode1;
+	// BTLeafNode leafNode2;
 
-	int siblingKey;
+	// int siblingKey;
 
-	for (int i = 1 ; i < 87; i++)
-		leafNode1.insert(i, RecordId{i, i});
+	// leafNode1.insert(1, RecordId{1,10});
+	// leafNode1.insert(3, RecordId{3,30});
+	// leafNode1.insert(5, RecordId{5,50});
+	// leafNode1.insert(2, RecordId{2,20});
 
-	leafNode1.insertAndSplit(87, RecordId{87, 87}, leafNode2, siblingKey);
+	// leafNode1.insertAndSplit(4, RecordId{4, 40}, leafNode2, siblingKey);
 
-	cerr << "Leaf Node 1" << endl;
-	leafNode1.print();
+	// cerr << "Leaf Node 1" << endl;
+	// leafNode1.print();
 
-	cerr << "Leaf Node 2" << endl;
-	leafNode2.print();
+	// cerr << "Leaf Node 2" << endl;
+	// leafNode2.print();
 
 	// BTNonLeafNode::insert
 	// nonLeafNode->insert(1, 10);
 	// nonLeafNode->insert(3, 30);
 	// nonLeafNode->insert(5, 50);
 	// nonLeafNode->insert(2, 20);
+
+	// BTLeafNode::insertAndSplit
+	// BTNonLeafNode nonLeafNode1;
+	// BTNonLeafNode nonLeafNode2;
+
+	// int siblingKey;
+
+	// nonLeafNode1.insert(1, 1);
+	// nonLeafNode1.insert(2, 2);
+	// nonLeafNode1.insert(3, 3);
+	// nonLeafNode1.insert(4, 4);
+
+	// nonLeafNode1.insertAndSplit(5, 5, nonLeafNode2, siblingKey);
+
+	// cerr << "nonLeafNode1" << endl;
+	// nonLeafNode1.print();
+
+	// cerr << "nonLeafNode2" << endl;
+	// nonLeafNode2.print();
 
 	// PageId result;
 
@@ -710,4 +732,3 @@ int main() {
 	// leafNode->print();
 	// nonLeafNode->print();
 }
-*/
