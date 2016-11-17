@@ -24,6 +24,8 @@ const int RC_PF_WRITE_ERROR = -13;
 const int RC_INSERT_ERROR = -14;
 // RC_NO_SUCH_RECORD already defined
 
+const int RC_ADD_NEW_CHILD = 1;
+
 /*
  * BTreeIndex constructor
  */
@@ -41,12 +43,13 @@ RC BTreeIndex::clearBuffer() {
 void BTreeIndex::print() {
 
 	// Print BTreeIndex information
+	cerr << "endPid: " << pf.endPid() << endl;
 	cerr << "rootPid: " << rootPid << endl;
 	cerr << "treeHeight: " << treeHeight << endl;
 	cerr << endl;
 
-	// Print root node information
-	BTLeafNode root(rootPid);
+	// // Print root node information
+	BTNonLeafNode root(rootPid);
 	root.read(rootPid, pf);
 	root.print();
 }
@@ -158,21 +161,26 @@ RC BTreeIndex::insert(int key, const RecordId& rid) {
 	//
 	// 4.
 	// 
-	return insertRec(key, rid, 1, rootPid, -1);
+
+	int newChildKey = -1;
+	PageId newChildPid = -1;
+
+	return insertRec(key, rid, 1, rootPid, newChildKey, newChildPid);
 }
 
-RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageId currPid, PageId parentPid) {
+RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageId currPid, int& newChildKey, PageId& newChildPid) {
 
 	int error;
 
-	// We've reach the leaf node level, so insert the leaf node
+	// We've reach the leaf node level, so insert into the leaf node
 	if (currTreeHeight == treeHeight) {
 
 		// Read in leaf node
 		BTLeafNode leafNode;
 		leafNode.read(currPid, pf);
 
-		// 2. No Overflow
+		// 2. No Overflow, parent node does not need to be split,
+		// so just return success
 		if (leafNode.insert(key, rid) == RC_SUCCESS) {
 			leafNode.write(currPid, pf);
 			return RC_SUCCESS;
@@ -185,7 +193,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 
 		if (error = leafNode.insertAndSplit(key, rid, newLeafNode, newLeafNodeKey)) {
 			cerr << "Could not insert and split leaf node, error code: " << error << endl;
-			return error;	
+			return error;
 		}
 
 		// Set next node pointers
@@ -196,28 +204,15 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 		leafNode.write(currPid, pf);
 		newLeafNode.write(newLeafNodePid, pf);
 
-		// Insert new leaf node information into parent node if not the root
+		// Not at root, so tell parent node to insert newLeafNode information
 		if (currTreeHeight != 1) {
-
-			// No overflow in parent node
-			BTNonLeafNode parent;
-			parent.read(parentPid, pf);
-
-			if (parent.insert(newLeafNodeKey, newLeafNodePid) == RC_SUCCESS) {
-				cerr << "key: " << key << endl;
-				cerr << "parentPid: " << parentPid << endl;
-				cerr << "newLeafNodeKey: " << newLeafNodeKey << endl;
-				cerr << "newLeafNodePid: " << newLeafNodePid << endl;
-				cerr << endl;
-				parent.write(parentPid, pf);
-				return RC_SUCCESS;
-			}
-
-			// TODO: Overflow
+			newChildKey = newLeafNodeKey;
+			newChildPid = newLeafNodePid;
+			return RC_ADD_NEW_CHILD;
+		}
 
 		// At root, need to make a new root
-		} else {
-
+		else {
 			// Initialize a new root
 			int newRootPid = pf.endPid();
 			BTNonLeafNode newRoot;
@@ -228,8 +223,10 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 			// Update BTreeIndex
 			rootPid = newRootPid;
 			treeHeight++;
-		}
 
+			// We are done
+			return RC_SUCCESS;
+		}
 
 
 	// We are at a non leaf node level
@@ -247,12 +244,64 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 			return RC_INSERT_ERROR;
 		};
 
-		// cerr << "childPid: " << childPid << endl;
-		// cerr << "currPid: " << currPid << endl;
-		// cerr << "currTreeHeight: " << currTreeHeight << endl;
+		// Recursively traverse deeper into the tree.
+		// Keep note if the child split, and add the new pid to this node
+		RC addNewChild;
+		addNewChild = insertRec(key, rid, currTreeHeight + 1, childPid, newChildKey, newChildPid);
 
-		// Go deeper into the tree
-		return insertRec(key, rid, currTreeHeight + 1, childPid, currPid);
+		// Child did not split, so do not need to add a new child
+		if (!addNewChild)
+			return RC_SUCCESS;
+		
+		// Child split, so we need to add a new child to this node
+		else if (currNode.insert(newChildKey, newChildPid) == RC_SUCCESS) {
+			currNode.write(currPid, pf);
+			return RC_SUCCESS;
+		}
+
+		// Child split, but currNode is full, so split this node
+		else {
+			BTNonLeafNode newNode;
+			PageId newNodePid = pf.endPid();
+			int newNodeKey;
+
+			if (error = newNode.insertAndSplit(newChildKey, newChildPid, newNode, newNodeKey)) {
+				cerr << "Could not insert and split non leaf node, error code: " << error << endl;
+				return error;
+			}
+
+			// Write currNode and newNode out to disk
+			currNode.write(currPid, pf);
+			newNode.write(newNodePid, pf);
+
+			// Not at root, so tell parent node to insert newLeafNode information
+			if (currTreeHeight != 1) {
+				newChildKey = newNodeKey;
+				newChildPid = newNodePid;
+				return RC_ADD_NEW_CHILD;
+			}
+
+			// At root, need to make a new root
+			else {
+				// Initialize a new root
+				int newRootPid = pf.endPid();
+				BTNonLeafNode newRoot;
+
+				cerr << "newRootPid: " << newRootPid << endl;
+
+				newRoot.initializeRoot(currPid, newNodeKey, newNodePid);
+				newRoot.write(newRootPid, pf);
+
+				// Update BTreeIndex
+				rootPid = newRootPid;
+				treeHeight++;
+
+				// We are done
+				return RC_SUCCESS;
+			}
+
+			return RC_SUCCESS;
+		}
 	}
 
 	return RC_SUCCESS;
@@ -360,7 +409,7 @@ RC BTreeIndex::readForward(IndexCursor& cursor, int& key, RecordId& rid) {
 
     return RC_SUCCESS;
 }
-
+/*
 int main() {
 
 	BTreeIndex* index = new BTreeIndex();
@@ -388,24 +437,29 @@ int main() {
 
 	test.open("testFile", 'w');
 
-	// BTNonLeafNode root;
-	// root.read(3, test.pf);
-	// root.print();
+
+	// for (int i = 1; i < 10000; i++)
+	// 	test.insert(i, RecordId{i, i});
+
+	// BTNonLeafNode nonLeaf1;
+	// nonLeaf1.read(44, test.pf);
+	// nonLeaf1.print();
+
+	// BTNonLeafNode nonLeaf2;
+	// nonLeaf2.read(86, test.pf);
+	// nonLeaf2.print();
 
 	// BTLeafNode first;
-	// first.read(1, test.pf);
+	// first.read(84, test.pf);
 	// first.print();
 
 	// BTLeafNode second;
-	// second.read(2, test.pf);
+	// second.read(43, test.pf);
 	// second.print();
 
 	// BTLeafNode third;
-	// third.read(4, test.pf);
+	// third.read(69, test.pf);
 	// third.print();
-
-	// for (int i = 1; i < 120; i++)
-	// 	test.insert(i, RecordId{i, i});
 
 	// BTreeIndex::readForward
 	// IndexCursor cursor;
@@ -447,3 +501,4 @@ int main() {
 
 	return RC_SUCCESS;
 }
+*/

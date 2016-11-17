@@ -20,8 +20,10 @@ const int RECORD_PAIR_SIZE = sizeof(int) + sizeof(RecordId);
 const int PAGE_PAIR_SIZE = sizeof(int) + sizeof(PageId);
 
 // Max number of keys
-const int MAX_NUM_PAGE_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / PAGE_PAIR_SIZE;
-const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / RECORD_PAIR_SIZE;
+const int MAX_NUM_RECORD_KEYS = 85;
+const int MAX_NUM_PAGE_KEYS = 40;
+// const int MAX_NUM_PAGE_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / PAGE_PAIR_SIZE;
+// const int MAX_NUM_RECORD_KEYS = (PageFile::PAGE_SIZE - sizeof(PageId)) / RECORD_PAIR_SIZE;
 
 //////////////////////////////////////////////////////////////////////
 /////////// BTLeafNode ///////////////////////////////////////////////
@@ -412,8 +414,9 @@ RC BTNonLeafNode::insert(int key, PageId pid){
 	char* traverse = buffer + offset;
 
 	// numKeys is already at the maximum number of keys
-	if (numKeys == MAX_NUM_PAGE_KEYS)
+	if (numKeys == MAX_NUM_PAGE_KEYS) {
 		return RC_NODE_FULL;
+	}
 
 	// Traverse buffer and find the correct spot to put pair in
 	// The correct spot will either be an empty spot (null)
@@ -496,7 +499,7 @@ RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, in
 	// Parameters are valid
 
 	// Get number of keys to store in original
-	int numHalfKeys = getKeyCount() / 2;
+	int numHalfKeys = (getKeyCount() + 1) / 2;
 
   // leftcut and right cut are the left and right side of the key that will be 'deleted'
   int leftcut = sizeof(PageId) + (numHalfKeys * RECORD_PAIR_SIZE);
@@ -600,15 +603,15 @@ void BTNonLeafNode::print() {
 		memcpy(&key, traverse, sizeof(int));
 		memcpy(&pageId, traverse + sizeof(int), sizeof(PageId));
 
-		cerr << "Key: " << pageId << endl;
-		cerr << "Page Id: " << key << endl;
+		cerr << "Key: " << key << endl;
+		cerr << "Page Id: " << pageId << endl;
 
 		traverse += PAGE_PAIR_SIZE;
 	}
 
 	cerr << endl;
 }
-
+/*
 // For testing
 int main() {
 	BTLeafNode* leafNode = new BTLeafNode();
@@ -731,4 +734,4 @@ int main() {
 
 	// leafNode->print();
 	// nonLeafNode->print();
-}
+}*/
