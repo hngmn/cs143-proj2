@@ -3,6 +3,8 @@ bruinbase.exe
 *.o
 *~
 *.swp
+*.tbl
+*.idx
 lex.sql.c
 SqlParser.tab.c
 SqlParser.tab.h
