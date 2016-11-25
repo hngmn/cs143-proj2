@@ -15,13 +15,6 @@
 
 using namespace std;
 
-// Return codes
-const int RC_SUCCESS = 0;
-const int RC_PF_CLOSE_ERROR = -10;
-const int RC_PF_OPEN_ERROR = -11;
-const int RC_PF_READ_ERROR = -12;
-const int RC_PF_WRITE_ERROR = -13;
-const int RC_INSERT_ERROR = -14;
 // RC_NO_SUCH_RECORD already defined
 
 const int RC_ADD_NEW_CHILD = 1;
@@ -409,96 +402,4 @@ RC BTreeIndex::readForward(IndexCursor& cursor, int& key, RecordId& rid) {
 
     return RC_SUCCESS;
 }
-/*
-int main() {
 
-	BTreeIndex* index = new BTreeIndex();
-
-	char fakeBuffer[PageFile::PAGE_SIZE];
-
-	// BTreeIndex::open
-	// PageFile* test1 = new PageFile("test1", 'w');
-	// PageId testRootId = 1;
-	// int testTreeHeight = 2;
-
-	// memcpy(fakeBuffer, &testRootId, sizeof(PageId));
-	// memcpy(fakeBuffer + sizeof(PageId), &testTreeHeight, sizeof(int));
-
-	// if (test1->write(0, fakeBuffer))
-	// 	cerr << "error" << endl;
-
-	// index->open("test1", 'w');
-	// // index->insert(2, RecordId{2, 20});
-	// index->close();
-	// index->print();
-
-	// BTreeIndex::insertRec (2.)
-	BTreeIndex test;
-
-	test.open("testFile", 'w');
-
-
-	// for (int i = 1; i < 10000; i++)
-	// 	test.insert(i, RecordId{i, i});
-
-	// BTNonLeafNode nonLeaf1;
-	// nonLeaf1.read(44, test.pf);
-	// nonLeaf1.print();
-
-	// BTNonLeafNode nonLeaf2;
-	// nonLeaf2.read(86, test.pf);
-	// nonLeaf2.print();
-
-	// BTLeafNode first;
-	// first.read(84, test.pf);
-	// first.print();
-
-	// BTLeafNode second;
-	// second.read(43, test.pf);
-	// second.print();
-
-	// BTLeafNode third;
-	// third.read(69, test.pf);
-	// third.print();
-
-	// BTreeIndex::readForward
-	// IndexCursor cursor;
-	// cursor.eid = 42;
-	// cursor.pid = 1;
-
-	// RecordId rid;
-	// int key;
-
-	// test.readForward(cursor, key, rid);
-
-	// cerr << "cursor.eid: " << cursor.eid;
-	// cerr << " cursor.pid: " << cursor.pid << endl;
-	// cerr << "key: " << key << endl;
-	// cerr << "rid.pid: " << rid.pid << endl;
-	// cerr << endl;
-
-	// test.readForward(cursor, key, rid);
-
-	// cerr << "cursor.eid: " << cursor.eid;
-	// cerr << " cursor.pid: " << cursor.pid << endl;
-	// cerr << "key: " << key << endl;
-	// cerr << "rid.pid: " << rid.pid << endl;
-	// cerr << endl;
-
-	// BTreeIndex::locate
-	// IndexCursor cursor;
-	// int key = 95;
-
-	// test.locate(key, cursor);
-
-	// cerr << "cursor.eid: " << cursor.eid;
-	// cerr << " cursor.pid: " << cursor.pid << endl;
-	// cerr << "key: " << key << endl;
-	// cerr << endl;
-
-	// test.print();
-	test.close();
-
-	return RC_SUCCESS;
-}
-*/
