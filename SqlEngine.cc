@@ -52,23 +52,72 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     return rc;
   }
 
-  bool index_exists = false; // flag for index searching
+  bool using_index = false; // flag for index searching
   // TODO: open index file, if it exists
+  for (int i = 0; i < cond.size(); ++i) {
+    if (cond[i].attr == 1 && cond[i].comp != SelCond::NE) {
+      // we can use the index
+      BTreeIndex bti;
+      if (rc = bti.open(table + ".idx", 'r')) { // error opening
+        // error opening
+        fprintf(stderr, "Error opening index file\n");
+      } else { // open successful
+        using_index = true;
+      }
+      break;
+    }
+  }
 
-  if (index_exists)
-    goto index_search;
+  // if we're using index, then get key range from conditions
+  int startkey = -1, endkey = -1, condval;
+  if (using_index) {
+    for (int i = 0; i < cond.size(); ++i) {
+      // skip conditions not on key
+      if (cond[i].attr != 1)
+        continue;
+
+      condval = atoi(cond[i].value);
+      switch (cond[i].comp) {
+      case SelCond::EQ:
+        startkey = endkey = condval;
+        break;
+      case SelCond::GT: // >n is equiv to >=n+1
+        condval++;
+      case SelCond::GE:
+        startkey = condval > startkey ? condval : startkey;
+        break;
+      case SelCond::LT: // <n is equiv to <=n-1
+        condval--;
+      case SelCond::LE:
+        startkey = condval < startkey ? condval : startkey;
+        break;
+      }     
+    }
+  }
+  if (startkey == -1)
+    startkey = 0;
 
   // scan the table file from the beginning
-  rid.pid = rid.sid = 0;
+  int k; // key traversal
+  rid.pid = rid.sid = 0; // rid traversal
   count = 0;
-  while (rid < rf.endRid()) {
+  while (1) {
+    // 0. check exit conditions
+    if (!(rid < rf.endRid()))
+      break;
+    if (!(k <= endkey))
+      break;
+
+    // 1. fetch tuple
+
+
     // read the tuple
     if ((rc = rf.read(rid, key, value)) < 0) {
       fprintf(stderr, "Error: while reading a tuple from table %s\n", table.c_str());
       goto exit_select;
     }
 
-    // check the conditions on the tuple
+    // 2. check the conditions on the tuple
     for (unsigned i = 0; i < cond.size(); i++) {
       // compute the difference between the tuple value and the condition value
       switch (cond[i].attr) {
@@ -104,10 +153,11 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     }
 
     // the condition is met for the tuple. 
-    // increase matching tuple counter
+
+    // 3. increase matching tuple counter
     count++;
 
-    // print the tuple 
+    // 4. print the tuple 
     switch (attr) {
     case 1:  // SELECT key
       fprintf(stdout, "%d\n", key);
@@ -120,17 +170,12 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
       break;
     }
 
-    // move to the next tuple
+    // 5. move to the next tuple
 next_tuple:
     ++rid;
+    ++key;
   }
 
-  goto output_count;
-
-index_search:
-  // TODO: search btree index for matching tuples
-
-output_count:
   // print matching tuple count if "select count(*)"
   if (attr == 4) {
     fprintf(stdout, "%d\n", count);
