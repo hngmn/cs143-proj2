@@ -82,7 +82,7 @@ int BTLeafNode::getKeyCount(){
 	int count = 0;
 	char* traverse = buffer;
 
-	while (*traverse) {
+	while (count < MAX_NUM_RECORD_KEYS && *traverse) {
 		count++;
 		traverse += RECORD_PAIR_SIZE;
 	}
@@ -382,7 +382,7 @@ int BTNonLeafNode::getKeyCount(){
 	int count = 0;
 	char* traverse = buffer + sizeof(PageId);
 
-	while (*traverse) {
+	while (count < MAX_NUM_PAGE_KEYS && *traverse) {
 		count++;
 		traverse += PAGE_PAIR_SIZE;
 	}
