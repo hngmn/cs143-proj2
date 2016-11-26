@@ -67,33 +67,33 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
       // compute the difference between the tuple value and the condition value
       switch (cond[i].attr) {
       case 1:
-	diff = key - atoi(cond[i].value);
-	break;
+        diff = key - atoi(cond[i].value);
+        break;
       case 2:
-	diff = strcmp(value.c_str(), cond[i].value);
-	break;
+        diff = strcmp(value.c_str(), cond[i].value);
+        break;
       }
 
       // skip the tuple if any condition is not met
       switch (cond[i].comp) {
       case SelCond::EQ:
-	if (diff != 0) goto next_tuple;
-	break;
+        if (diff != 0) goto next_tuple;
+        break;
       case SelCond::NE:
-	if (diff == 0) goto next_tuple;
-	break;
+        if (diff == 0) goto next_tuple;
+        break;
       case SelCond::GT:
-	if (diff <= 0) goto next_tuple;
-	break;
+        if (diff <= 0) goto next_tuple;
+        break;
       case SelCond::LT:
-	if (diff >= 0) goto next_tuple;
-	break;
+        if (diff >= 0) goto next_tuple;
+          break;
       case SelCond::GE:
-	if (diff < 0) goto next_tuple;
-	break;
+        if (diff < 0) goto next_tuple;
+        break;
       case SelCond::LE:
-	if (diff > 0) goto next_tuple;
-	break;
+        if (diff > 0) goto next_tuple;
+        break;
       }
     }
 
@@ -115,7 +115,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     }
 
     // move to the next tuple
-    next_tuple:
+next_tuple:
     ++rid;
   }
 
@@ -126,7 +126,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
   rc = 0;
 
   // close the table file and return
-  exit_select:
+exit_select:
   rf.close();
   return rc;
 }
@@ -194,41 +194,41 @@ RC SqlEngine::load(const string& table, const string& loadfile, bool index)
 
 RC SqlEngine::parseLoadLine(const string& line, int& key, string& value)
 {
-    const char *s;
-    char        c;
-    string::size_type loc;
-    
-    // ignore beginning white spaces
-    c = *(s = line.c_str());
-    while (c == ' ' || c == '\t') { c = *++s; }
+  const char *s;
+  char        c;
+  string::size_type loc;
 
-    // get the integer key value
-    key = atoi(s);
+  // ignore beginning white spaces
+  c = *(s = line.c_str());
+  while (c == ' ' || c == '\t') { c = *++s; }
 
-    // look for comma
-    s = strchr(s, ',');
-    if (s == NULL) { return RC_INVALID_FILE_FORMAT; }
+  // get the integer key value
+  key = atoi(s);
 
-    // ignore white spaces
-    do { c = *++s; } while (c == ' ' || c == '\t');
-    
-    // if there is nothing left, set the value to empty string
-    if (c == 0) { 
-        value.erase();
-        return 0;
-    }
+  // look for comma
+  s = strchr(s, ',');
+  if (s == NULL) { return RC_INVALID_FILE_FORMAT; }
 
-    // is the value field delimited by ' or "?
-    if (c == '\'' || c == '"') {
-        s++;
-    } else {
-        c = '\n';
-    }
+  // ignore white spaces
+  do { c = *++s; } while (c == ' ' || c == '\t');
 
-    // get the value string
-    value.assign(s);
-    loc = value.find(c, 0);
-    if (loc != string::npos) { value.erase(loc); }
-
+  // if there is nothing left, set the value to empty string
+  if (c == 0) { 
+    value.erase();
     return 0;
+  }
+
+  // is the value field delimited by ' or "?
+  if (c == '\'' || c == '"') {
+    s++;
+  } else {
+    c = '\n';
+  }
+
+  // get the value string
+  value.assign(s);
+  loc = value.find(c, 0);
+  if (loc != string::npos) { value.erase(loc); }
+
+  return 0;
 }
