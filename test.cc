@@ -9,8 +9,8 @@ using namespace std;
 // For testing
 int main() {
   // BTREENODE TESTING CODE //////////////////////////////////////////////////
-	BTLeafNode* leafNode = new BTLeafNode();
-	BTNonLeafNode* nonLeafNode = new BTNonLeafNode();
+	//BTLeafNode* leafNode = new BTLeafNode();
+	//BTNonLeafNode* nonLeafNode = new BTNonLeafNode();
 
 	// // BTLeafNode::insert
 	// for (int i = 0; i < MAX_NUM_RECORD_KEYS + 1; i++) {
@@ -131,9 +131,9 @@ int main() {
 	// nonLeafNode->print();
 
   // BTREEINDEX TESTING CODE /////////////////////////////////////////////////
-	BTreeIndex* index = new BTreeIndex();
+	// BTreeIndex* index = new BTreeIndex();
 
-	char fakeBuffer[PageFile::PAGE_SIZE];
+	// char fakeBuffer[PageFile::PAGE_SIZE];
 
 	// BTreeIndex::open
 	// PageFile* test1 = new PageFile("test1", 'w');
@@ -157,8 +157,8 @@ int main() {
 	test.open("testFile", 'w');
 
 
-	// for (int i = 1; i < 10000; i++)
-	// 	test.insert(i, RecordId{i, i});
+	for (int i = 1; i < 10000; i++)
+	 	test.insert(i, RecordId{i, i});
 
 	// BTNonLeafNode nonLeaf1;
 	// nonLeaf1.read(44, test.pf);
