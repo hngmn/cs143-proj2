@@ -52,6 +52,12 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     return rc;
   }
 
+  bool index_exists = false; // flag for index searching
+  // TODO: open index file, if it exists
+
+  if (index_exists)
+    goto index_search;
+
   // scan the table file from the beginning
   rid.pid = rid.sid = 0;
   count = 0;
@@ -119,6 +125,12 @@ next_tuple:
     ++rid;
   }
 
+  goto output_count;
+
+index_search:
+  // TODO: search btree index for matching tuples
+
+output_count:
   // print matching tuple count if "select count(*)"
   if (attr == 4) {
     fprintf(stdout, "%d\n", count);
