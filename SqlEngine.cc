@@ -14,6 +14,7 @@
 #include <fstream>
 #include "Bruinbase.h"
 #include "SqlEngine.h"
+#include "BTreeIndex.h"
 
 using namespace std;
 
@@ -134,29 +135,37 @@ RC SqlEngine::load(const string& table, const string& loadfile, bool index)
 {
   RC ret;
   RecordId rid;
-  RecordFile rf;
   int k;
   string v;
-  ifstream ifs;
 
   // open table file
+  RecordFile rf;
   if (ret = rf.open(table + ".tbl", 'w')) { // error
     fprintf(stderr, "rf.open() failed to open\n");
     return RC_FILE_OPEN_FAILED;
   }
 
   // open loadfile
-  ifs.open(loadfile.c_str()); // what the FUCK its not opening right
+  ifstream ifs;
+  ifs.open(loadfile.c_str());
   if (!ifs.is_open()) { // error
     fprintf(stderr, "ifs failed to open %s\n", loadfile.c_str());
     return RC_FILE_OPEN_FAILED;
+  }
+
+  BTreeIndex bti;
+  if (index) { // build index
+    if (ret = bti.open(table + ".idx", 'w')) { // error
+      fprintf(stderr, "bti.open() failed to open index file\n");
+      return ret;
+    }
   }
 
   string line;
   // read lines
   while (getline(ifs, line)) {
 
-    // create rid
+    // parse for key-value pair
     if (ret = SqlEngine::parseLoadLine(line, k, v)) { // parsing failed
       // parse failed
       cout << ret;
@@ -164,13 +173,22 @@ RC SqlEngine::load(const string& table, const string& loadfile, bool index)
       return ret;
     }
 
-    // insert rid into rf
+    // append key-value pair to rf
     if (ret = rf.append(k, v, rid)) { // append failed
       fprintf(stderr, "append returned nonzero\n");
       return ret;
     }
+
+    if (index) {
+      // insert rid into index
+      if (ret = bti.insert(k, rid)) { // insert failed
+        fprintf(stderr, "bit.insert returned nonzero\n");
+        return ret;
+      }
+    }
   }
 
+  fprintf(stderr, "load successful\n");
   return 0;
 }
 
