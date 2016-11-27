@@ -53,7 +53,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
   }
 
   bool using_index = false; // flag for index searching
-  // TODO: open index file, if it exists
+  // open index file, if it exists
   for (int i = 0; i < cond.size(); ++i) {
     if (cond[i].attr == 1 && cond[i].comp != SelCond::NE) {
       // we can use the index
@@ -62,6 +62,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
         // error opening
         fprintf(stderr, "Error opening index file\n");
       } else { // open successful
+        fprintf(stderr, "open index file successful\n");
         using_index = true;
       }
       break;
@@ -91,7 +92,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
       case SelCond::LE:
         startkey = condval < startkey ? condval : startkey;
         break;
-      }     
+      }
     }
   }
   if (startkey == -1)
@@ -108,10 +109,11 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     if (!(k <= endkey))
       break;
 
-    // 1. fetch tuple
+    // 1. TODO: fetch tuple, by key or by rid depending on `using_index`
 
 
     // read the tuple
+    // TODO: only read tuple if we need to
     if ((rc = rf.read(rid, key, value)) < 0) {
       fprintf(stderr, "Error: while reading a tuple from table %s\n", table.c_str());
       goto exit_select;
@@ -157,7 +159,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     // 3. increase matching tuple counter
     count++;
 
-    // 4. print the tuple 
+    // 4. print the tuple
     switch (attr) {
     case 1:  // SELECT key
       fprintf(stdout, "%d\n", key);
@@ -270,7 +272,7 @@ RC SqlEngine::parseLoadLine(const string& line, int& key, string& value)
   do { c = *++s; } while (c == ' ' || c == '\t');
 
   // if there is nothing left, set the value to empty string
-  if (c == 0) { 
+  if (c == 0) {
     value.erase();
     return 0;
   }
