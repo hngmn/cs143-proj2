@@ -33,7 +33,8 @@ BTLeafNode::BTLeafNode(PageId pid) {
 }
 
 RC BTLeafNode::clearBuffer() {
-	memset(buffer, 0, PageFile::PAGE_SIZE);
+	//memset(buffer, 0, PageFile::PAGE_SIZE);
+  fill (buffer, buffer + PageFile::PAGE_SIZE, 0);
 	return RC_SUCCESS;
 }
 
@@ -176,7 +177,8 @@ RC BTLeafNode::insertAndSplit(int key, const RecordId& rid,
 
 	// Erase second half of the node
 	// Will set key of this later, because it could be the newly inserted key
-	memset(buffer + midOffset, 0, midOffset);
+	//memset(buffer + midOffset, 0, midOffset);
+	fill(buffer + midOffset, buffer + PageFile::PAGE_SIZE, 0);
 
 	// Choose which buffer to insert new key into
 	int siblingFirstKey;
@@ -333,7 +335,8 @@ BTNonLeafNode::BTNonLeafNode(PageId pid) {
 }
 
 RC BTNonLeafNode::clearBuffer() {
-	memset(buffer, 0, PageFile::PAGE_SIZE);
+	//memset(buffer, 0, PageFile::PAGE_SIZE);
+  fill (buffer, buffer + PageFile::PAGE_SIZE, 0);
 	return RC_SUCCESS;
 }
 
@@ -500,7 +503,8 @@ RC BTNonLeafNode::insertAndSplit(int key, PageId pid, BTNonLeafNode& sibling, in
 	memcpy(sibling.buffer, buffer + rightcut, PageFile::PAGE_SIZE - rightcut);
 
 	// Erase second half of original
-	memset(buffer + leftcut, 0, PageFile::PAGE_SIZE - leftcut);
+	//memset(buffer + leftcut, 0, PageFile::PAGE_SIZE - leftcut);
+	fill(buffer + leftcut, buffer + PageFile::PAGE_SIZE, 0);
 
 	// Choose which buffer to insert new key into
 	int siblingFirstKey;
