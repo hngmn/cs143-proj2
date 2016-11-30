@@ -56,21 +56,25 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
 
   // open index file, if it exists and is needed
   bool using_index = false; // flag for index searching
+  bool read_tuple = attr == 2 || attr == 3;  // flag for whether to read in tuple from disk
   BTreeIndex bti;
   for (int i = 0; i < cond.size(); ++i) {
     // we only use the index when we have a condition on key attribute that
     // isn't "SelCond::NE"
-    if (cond[i].attr == 1 && cond[i].comp != SelCond::NE) {
+    if (!using_index && cond[i].attr == 1 && cond[i].comp != SelCond::NE) {
       // we want to use the index
-      fprintf(stderr, "select: using index\n");
+      //fprintf(stderr, "select: using index\n");
       if (rc = bti.open(table + ".idx", 'r')) { // error opening
         // error opening
         fprintf(stderr, "Error opening index file\n");
       } else { // open successful
-        fprintf(stderr, "open index file successful\n");
+        //fprintf(stderr, "open index file successful\n");
         using_index = true;
       }
-      break;
+    }
+
+    if (!read_tuple && (cond[i].attr == 2)) {
+      read_tuple = true;
     }
   }
 
@@ -105,7 +109,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
   if (endkey == INT_MAX)
     endkey = 6000; // lol TODO: set this to highest key?
 
-  fprintf(stderr, "select: starting select loop. startkey=%d, endkey=%d\n", startkey, endkey);
+  //fprintf(stderr, "select: starting select loop. startkey=%d, endkey=%d\n", startkey, endkey);
   // start searching tuples
   IndexCursor cursor;
   rid.pid = rid.sid = 0; // rid traversal
@@ -116,12 +120,12 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     if (!(rid < rf.endRid()))
       break;
     if (!(key <= endkey)) {
-      fprintf(stderr, "select: key == endkey. breaking out of loop\n");
+      //fprintf(stderr, "select: key == endkey. breaking out of loop\n");
       break;
     }
     //fprintf(stderr, "select: loop iter. key=%d\n", key);
 
-    // 1. TODO: fetch tuple, by key or by rid depending on `using_index`
+    // 1. fetch tuple, by key or by rid depending on `using_index`
     if (using_index) {
       if (rc = bti.locate(key, cursor)) { // not found or error
         // check if record not found or actual error
@@ -139,19 +143,15 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
         fprintf(stderr, "bti.readForward returned nonzero\n");
         return rc; //exit? lol
       }
-
-      // sanity check: k and tmp should be the same (?)
-      if (key != tmp) {
-        fprintf(stderr, "sanity check: k != tmp!!!!\n");
-      }
-
     }
 
     // read the tuple
     // TODO: only read tuple if we need to
-    if ((rc = rf.read(rid, key, value)) < 0) {
-      fprintf(stderr, "Error: while reading a tuple from table %s\n", table.c_str());
-      goto exit_select;
+    if (read_tuple) {
+      if ((rc = rf.read(rid, key, value)) < 0) {
+        fprintf(stderr, "Error: while reading a tuple from table %s\n", table.c_str());
+        goto exit_select;
+      }
     }
 
     // 2. check the conditions on the tuple
@@ -284,7 +284,7 @@ RC SqlEngine::load(const string& table, const string& loadfile, bool index)
     }
   }
 
-  fprintf(stderr, "load successful\n");
+  //fprintf(stderr, "load successful\n");
   bti.close();
   return 0;
 }
