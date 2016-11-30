@@ -107,7 +107,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
   if (startkey == -1)
     startkey = 0;
   if (endkey == INT_MAX)
-    endkey = 6000; // lol TODO: set this to highest key?
+    endkey = 14000; // lol TODO: set this to highest key?
 
   //fprintf(stderr, "select: starting select loop. startkey=%d, endkey=%d\n", startkey, endkey);
   // start searching tuples

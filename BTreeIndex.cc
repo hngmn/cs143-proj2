@@ -84,7 +84,7 @@ RC BTreeIndex::open(const string& indexname, char mode) {
 		if (tempRootId != 0 && tempTreeHeight >= 0) {
 			rootPid = tempRootId;
 			treeHeight = tempTreeHeight;
-      cerr << "treeHeight=" << treeHeight << endl;
+      //cerr << "treeHeight=" << treeHeight << endl;
 		}
 	}
 
@@ -97,9 +97,9 @@ RC BTreeIndex::open(const string& indexname, char mode) {
  */
 RC BTreeIndex::close() {
 
-  cerr << "closing btreeindex.. "
-       << "rootPid=" << rootPid
-       << " treeHeight=" << treeHeight << endl;
+  //cerr << "closing btreeindex.. "
+  //     << "rootPid=" << rootPid
+  //     << " treeHeight=" << treeHeight << endl;
 	// Store rootPid and treeHeight into buffer
 	memcpy(buffer, &rootPid, sizeof(PageId));
 	memcpy(buffer + sizeof(PageId), &treeHeight, sizeof(int));
@@ -189,7 +189,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 		int newLeafNodeKey;
 
 		if (error = leafNode.insertAndSplit(key, rid, newLeafNode, newLeafNodeKey)) {
-			cerr << "Could not insert and split leaf node, error code: " << error << endl;
+			//cerr << "Could not insert and split leaf node, error code: " << error << endl;
 			return error;
 		}
 
@@ -263,7 +263,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 			int newNodeKey;
 
 			if (error = newNode.insertAndSplit(newChildKey, newChildPid, newNode, newNodeKey)) {
-				cerr << "Could not insert and split non leaf node, error code: " << error << endl;
+				//cerr << "Could not insert and split non leaf node, error code: " << error << endl;
 				return error;
 			}
 
@@ -284,7 +284,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 				int newRootPid = pf.endPid();
 				BTNonLeafNode newRoot;
 
-				cerr << "newRootPid: " << newRootPid << endl;
+				//cerr << "newRootPid: " << newRootPid << endl;
 
 				newRoot.initializeRoot(currPid, newNodeKey, newNodePid);
 				newRoot.write(newRootPid, pf);
@@ -326,7 +326,7 @@ RC BTreeIndex::locate(int searchKey, IndexCursor& cursor) {
 
 	// Tree is empty
 	if (treeHeight <= 0) {
-		cerr << "Tree is empty." << endl;
+		//cerr << "Tree is empty." << endl;
 		return RC_NO_SUCH_RECORD;
 	}
 
@@ -382,13 +382,13 @@ RC BTreeIndex::readForward(IndexCursor& cursor, int& key, RecordId& rid) {
 
     // Read in the leaf node
     if (error = leafNode.read(cursor.pid, pf)) {
-    	cerr << "Could not read from cursor.pid: " << cursor.pid << endl;
+    	//cerr << "Could not read from cursor.pid: " << cursor.pid << endl;
     	return error;
     }
 
     // Get (key, rid) from eid
    	if (error = leafNode.readEntry(cursor.eid, key, rid)) {
-   		cerr << "Could not read entry cursor.eid: " << cursor.eid << endl;
+   		//cerr << "Could not read entry cursor.eid: " << cursor.eid << endl;
    		return error;
    	}
 
