@@ -84,6 +84,7 @@ RC BTreeIndex::open(const string& indexname, char mode) {
 		if (tempRootId != 0 && tempTreeHeight >= 0) {
 			rootPid = tempRootId;
 			treeHeight = tempTreeHeight;
+      cerr << "treeHeight=" << treeHeight << endl;
 		}
 	}
 
@@ -96,6 +97,9 @@ RC BTreeIndex::open(const string& indexname, char mode) {
  */
 RC BTreeIndex::close() {
 
+  cerr << "closing btreeindex.. "
+       << "rootPid=" << rootPid
+       << " treeHeight=" << treeHeight << endl;
 	// Store rootPid and treeHeight into buffer
 	memcpy(buffer, &rootPid, sizeof(PageId));
 	memcpy(buffer + sizeof(PageId), &treeHeight, sizeof(int));
@@ -233,7 +237,7 @@ RC BTreeIndex::insertRec(int key, const RecordId& rid, int currTreeHeight, PageI
 		PageId childPid = -1;	
 
 		if (currNode.locateChildPtr(key, childPid)) {
-			cerr << "Could not locate childPid with key: " << key << endl;
+			//cerr << "Could not locate childPid with key: " << key << endl;
 			return RC_INSERT_ERROR;
 		};
 
@@ -342,9 +346,9 @@ RC BTreeIndex::locateRec(int currTreeHeight, PageId currPid, int searchKey, Inde
 
 		// searchKey is not in leafNode
 		if (leafNode.locate(searchKey, cursor.eid)) {
-			cerr << "Could not locate searchKey: " << searchKey;
-			cerr << " in leafNode with pid: " << currPid << endl;
-			cerr << endl;
+			//cerr << "Could not locate searchKey: " << searchKey;
+			//cerr << " in leafNode with pid: " << currPid << endl;
+			//cerr << endl;
 			return RC_NO_SUCH_RECORD;
 		}
 

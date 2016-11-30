@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <climits>
 #include "Bruinbase.h"
 #include "SqlEngine.h"
 #include "BTreeIndex.h"
@@ -45,6 +46,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
   string value;
   int    count;
   int    diff;
+  int    tmp;
 
   // open the table file
   if ((rc = rf.open(table + ".tbl", 'r')) < 0) {
@@ -52,12 +54,15 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
     return rc;
   }
 
+  // open index file, if it exists and is needed
   bool using_index = false; // flag for index searching
-  // open index file, if it exists
+  BTreeIndex bti;
   for (int i = 0; i < cond.size(); ++i) {
+    // we only use the index when we have a condition on key attribute that
+    // isn't "SelCond::NE"
     if (cond[i].attr == 1 && cond[i].comp != SelCond::NE) {
-      // we can use the index
-      BTreeIndex bti;
+      // we want to use the index
+      fprintf(stderr, "select: using index\n");
       if (rc = bti.open(table + ".idx", 'r')) { // error opening
         // error opening
         fprintf(stderr, "Error opening index file\n");
@@ -70,7 +75,7 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
   }
 
   // if we're using index, then get key range from conditions
-  int startkey = -1, endkey = -1, condval;
+  int startkey = -1, endkey = INT_MAX, condval;
   if (using_index) {
     for (int i = 0; i < cond.size(); ++i) {
       // skip conditions not on key
@@ -90,27 +95,57 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
       case SelCond::LT: // <n is equiv to <=n-1
         condval--;
       case SelCond::LE:
-        startkey = condval < startkey ? condval : startkey;
+        endkey = condval < endkey ? condval : endkey;
         break;
       }
     }
   }
   if (startkey == -1)
     startkey = 0;
+  if (endkey == INT_MAX)
+    endkey = 6000; // lol TODO: set this to highest key?
 
-  // scan the table file from the beginning
-  int k; // key traversal
+  fprintf(stderr, "select: starting select loop. startkey=%d, endkey=%d\n", startkey, endkey);
+  // start searching tuples
+  IndexCursor cursor;
   rid.pid = rid.sid = 0; // rid traversal
   count = 0;
+  key = startkey;
   while (1) {
     // 0. check exit conditions
     if (!(rid < rf.endRid()))
       break;
-    if (!(k <= endkey))
+    if (!(key <= endkey)) {
+      fprintf(stderr, "select: key == endkey. breaking out of loop\n");
       break;
+    }
+    //fprintf(stderr, "select: loop iter. key=%d\n", key);
 
     // 1. TODO: fetch tuple, by key or by rid depending on `using_index`
+    if (using_index) {
+      if (rc = bti.locate(key, cursor)) { // not found or error
+        // check if record not found or actual error
+        if (rc == RC_NO_SUCH_RECORD) {
+          goto next_tuple; // not sure if this is the best thing to do
+        } else { // actual error
+          fprintf(stderr, "bti.locate returned actual error\n");
+          return rc; // unrecoverable so just panic and return?
+        }
+      }
 
+      // record was found
+
+      if (rc = bti.readForward(cursor, tmp, rid)) { // error
+        fprintf(stderr, "bti.readForward returned nonzero\n");
+        return rc; //exit? lol
+      }
+
+      // sanity check: k and tmp should be the same (?)
+      if (key != tmp) {
+        fprintf(stderr, "sanity check: k != tmp!!!!\n");
+      }
+
+    }
 
     // read the tuple
     // TODO: only read tuple if we need to
@@ -174,8 +209,10 @@ RC SqlEngine::select(int attr, const string& table, const vector<SelCond>& cond)
 
     // 5. move to the next tuple
 next_tuple:
-    ++rid;
-    ++key;
+    if (using_index)
+      ++key;
+    else
+      ++rid;
   }
 
   // print matching tuple count if "select count(*)"
@@ -248,6 +285,7 @@ RC SqlEngine::load(const string& table, const string& loadfile, bool index)
   }
 
   fprintf(stderr, "load successful\n");
+  bti.close();
   return 0;
 }
 
